@@ -96,7 +96,7 @@ function onScroll() {
   if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) unreadCount.value = 0
   if (el.scrollTop < 75 && hasMore.value && !loading.value && !loadingMore.value) void older()
 }
-watch(() => messages.value.map(message => message.id), async (current, previous) => {
+watch(() => messages.value.map(message => message.id), async (_current, previous) => {
   const el = scrollEl.value
   if (!el || keepingScroll) return
   const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180
