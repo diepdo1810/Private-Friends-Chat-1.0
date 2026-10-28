@@ -100,7 +100,7 @@ export const useMessagesStore = defineStore('messages', () => {
       }
       initialized = true
       // This second read closes the gap between initial query and subscription.
-      if (connection.value === 'online') void catchUp(run, room)
+      void catchUp(run, room)
     } catch (err) {
       if (valid(run, room)) error.value = err instanceof Error ? err.message : 'Không tải được lịch sử.'
     } finally {
