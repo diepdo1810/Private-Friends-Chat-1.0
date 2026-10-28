@@ -99,7 +99,10 @@ export const useMessagesStore = defineStore('messages', () => {
       // This second read closes the gap between initial query and subscription.
       void catchUp(run, room)
     } catch (err) {
-      if (valid(run, room)) error.value = err instanceof Error ? err.message : 'Không tải được lịch sử.'
+      if (valid(run, room)) {
+        error.value = err instanceof Error ? err.message : 'Không tải được lịch sử.'
+        connection.value = 'offline'
+      }
     } finally {
       if (valid(run, room)) loading.value = false
     }
@@ -138,7 +141,10 @@ export const useMessagesStore = defineStore('messages', () => {
         }
       } while (catchupRequested && valid(run, room))
     } catch (err) {
-      if (valid(run, room)) error.value = err instanceof Error ? err.message : 'Không đồng bộ được tin nhắn.'
+      if (valid(run, room)) {
+        error.value = err instanceof Error ? err.message : 'Không đồng bộ được tin nhắn.'
+        connection.value = 'offline'
+      }
     } finally {
       if (valid(run, room)) catchupRunning = false
     }
