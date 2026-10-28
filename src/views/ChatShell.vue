@@ -74,34 +74,8 @@
 
         <!-- Room Main Body -->
         <div class="chat-body">
-          <div class="foundation-notice ss-card">
-            <div class="foundation-icon">
-              <font-awesome-icon :icon="['fas', 'circle-check']" />
-            </div>
-            <h3>P1 — Nền tảng Auth & Phân quyền RLS đã sẵn sàng!</h3>
-            <p>
-              Tài khoản <strong>{{ profile?.display_name || user?.email }}</strong> đã được xác thực an toàn qua Supabase Auth và phân quyền thông qua PostgreSQL Row Level Security (RLS).
-            </p>
-
-            <div class="features-status">
-              <div class="status-item verified">
-                <font-awesome-icon :icon="['fas', 'check']" />
-                <span>Supabase Email Auth & Phiên làm việc</span>
-              </div>
-              <div class="status-item verified">
-                <font-awesome-icon :icon="['fas', 'check']" />
-                <span>PostgreSQL Schema 4 bảng & RLS Default Deny</span>
-              </div>
-              <div class="status-item verified">
-                <font-awesome-icon :icon="['fas', 'check']" />
-                <span>Helper `private.is_room_member` chống đệ quy</span>
-              </div>
-              <div class="status-item pending">
-                <font-awesome-icon :icon="['fas', 'clock']" />
-                <span>Tin nhắn Realtime & Bù tin nhắn reconnect (P2)</span>
-              </div>
-            </div>
-          </div>
+          <ChatRoom v-if="activeRoom && user" :room-id="activeRoom.id" :my-user-id="user.id" :members="roomMembers" />
+          <div v-else class="chat-placeholder">Chọn phòng để bắt đầu nhắn tin.</div>
 
           <!-- Members Drawer / Modal -->
           <div v-if="showMembers" class="members-panel ss-card">
@@ -150,6 +124,7 @@ import { useChatStore } from '@/stores/chat'
 import Sidebar from '@/components/Sidebar.vue'
 import RoomCard from '@/components/RoomCard.vue'
 import AboutModal from '@/components/AboutModal.vue'
+import ChatRoom from '@/components/ChatRoom.vue'
 
 const authStore = useAuthStore()
 const chatStore = useChatStore()

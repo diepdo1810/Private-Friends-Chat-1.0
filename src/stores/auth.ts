@@ -29,7 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
         return null
       }
 
-      if (data) {
+      if (data && user.value?.id === userId) {
         profile.value = data as Profile
       }
       return data

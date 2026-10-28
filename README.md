@@ -108,3 +108,15 @@ Bộ test tự động trong thư mục `tests/` bao gồm 18 bài test đã đ�
 
 Dự án này được cấp phép theo [GNU Affero General Public License v3.0 (AGPL-3.0)](./LICENSE).  
 Phần giao diện kế thừa phong cách từ [Stapxs QQ Lite 2.0](https://github.com/Stapxs/Stapxs-QQ-Lite-2.0). Mọi tài nguyên nhãn hiệu QQ của bên thứ ba đã được loại bỏ và thay thế bằng icon mã nguồn mở cùng emoji hệ thống chuẩn Unicode.
+
+
+---
+
+## P2 — Realtime text chat
+- Áp dụng P1 migration/seed và kiểm tra đúng 4 thành viên phòng.
+- **Chạy `supabase/migrations/20261028010000_p2_realtime.sql` trong Supabase SQL Editor** để bật Postgres Changes cho `public.messages`. Frontend không tự thay publication.
+- Trên 2 trình duyệt đăng nhập 2 thành viên: gửi tin nhắn, kiểm tra nhận ngay, refresh lịch sử, cuộn lên tải cũ.
+- Kiểm tra mất kết nối rồi kết nối lại: tin nhắn bị lỡ được tải bù và chống trùng qua `message.id`.
+- Nội dung text chỉ hiển thị qua Vue interpolation (không dùng `v-html`); quyền SELECT/INSERT tiếp tục do RLS tại PostgreSQL.
+- Không có upload/DM/voice/video. Khi chưa bật publication, dữ liệu vẫn lưu và hiện qua refresh nhưng không đẩy realtime.
+- Chạy `yarn typecheck && yarn test && yarn build` để xác nhận build trước khi deploy.

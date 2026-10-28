@@ -9,10 +9,12 @@ export const useChatStore = defineStore('chat', () => {
   const roomMembers = ref<RoomMember[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
+  let requestEpoch = 0
 
   async function fetchRooms() {
     if (!isSupabaseConfigured) return []
 
+    const run = requestEpoch
     loading.value = true
     error.value = null
 
@@ -23,6 +25,7 @@ export const useChatStore = defineStore('chat', () => {
         .select('*')
         .order('created_at', { ascending: true })
 
+      if (run !== requestEpoch) return []
       if (roomError) {
         error.value = roomError.message
         return []
@@ -43,11 +46,12 @@ export const useChatStore = defineStore('chat', () => {
       error.value = err.message || 'Không thể tải danh sách phòng chat.'
       return []
     } finally {
-      loading.value = false
+      if (run === requestEpoch) loading.value = false
     }
   }
 
   function reset() {
+    requestEpoch++
     rooms.value = []
     activeRoom.value = null
     roomMembers.value = []
@@ -63,6 +67,7 @@ export const useChatStore = defineStore('chat', () => {
   async function fetchRoomMembers(roomId: string) {
     if (!isSupabaseConfigured) return []
 
+    const run = requestEpoch
     try {
       // Query room_members joining profiles table
       const { data, error: membersError } = await supabase
@@ -82,6 +87,7 @@ export const useChatStore = defineStore('chat', () => {
         `)
         .eq('room_id', roomId)
 
+      if (run !== requestEpoch || activeRoom.value?.id !== roomId) return []
       if (membersError) {
         // eslint-disable-next-line no-console
         console.error('[ChatStore] Error fetching members:', membersError.message)
