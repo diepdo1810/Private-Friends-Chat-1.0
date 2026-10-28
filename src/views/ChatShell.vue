@@ -129,7 +129,7 @@ import ChatRoom from '@/components/ChatRoom.vue'
 const authStore = useAuthStore()
 const chatStore = useChatStore()
 
-const { user, profile } = storeToRefs(authStore)
+const { user } = storeToRefs(authStore)
 const { rooms, activeRoom, roomMembers, loading } = storeToRefs(chatStore)
 
 const showAbout = ref(false)
