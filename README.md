@@ -120,3 +120,13 @@ Phần giao diện kế thừa phong cách từ [Stapxs QQ Lite 2.0](https://git
 - Nội dung text chỉ hiển thị qua Vue interpolation (không dùng `v-html`); quyền SELECT/INSERT tiếp tục do RLS tại PostgreSQL.
 - Không có upload/DM/voice/video. Khi chưa bật publication, dữ liệu vẫn lưu và hiện qua refresh nhưng không đẩy realtime.
 - Chạy `yarn typecheck && yarn test && yarn build` để xác nhận build trước khi deploy.
+
+
+## P3 — Stabilization & QA
+- Khi đổi tài khoản/logout: xóa cached room/messages và bỏ Realtime subscription; kết quả request cũ không được hiển thị dưới account mới.
+- Khi mạng mất: dùng **Thử lại**, đồng bộ các tin thiếu; kể cả phòng ban đầu không có tin.
+- Khi đọc lịch sử, tin mới hiện nút **tin mới — Xem** thay vì tự cuộn.
+- DB tests trong CI là unit/simulation. **KHÔNG** coi PASS nghĩa là Supabase RLS live đã được kiểm chứng.
+- Test live **chỉ khi chủ động bật**: `RUN_LIVE_SUPABASE_TESTS=1` cùng với `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (hoặc publishable key), `TEST_MEMBER_EMAIL`, `TEST_MEMBER_PASSWORD`, `TEST_OUTSIDER_EMAIL`, `TEST_OUTSIDER_PASSWORD`.
+- Nếu thiếu cấu hình hoặc migration, test live PHẢI FAIL. Không đặt mật khẩu trong git hoặc GitHub issue. Thử trên project test, không dùng dữ liệu thật.
+- Realtime P2 vẫn yêu cầu chạy `supabase/migrations/20261028010000_p2_realtime.sql` nếu chưa áp dụng và kiểm tra 2 tài khoản thực.

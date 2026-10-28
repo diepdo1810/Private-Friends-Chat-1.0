@@ -4,6 +4,7 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/services/supabase'
 import type { Profile } from '@/types/database'
 import { useChatStore } from '@/stores/chat'
+import { useMessagesStore } from '@/stores/messages'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -63,9 +64,15 @@ export const useAuthStore = defineStore('auth', () => {
       // Supabase strictly warns against awaiting database queries inside onAuthStateChange callbacks,
       // as it causes deadlocks and hangs token refresh cycles.
       supabase.auth.onAuthStateChange((_event, newSession) => {
+        const oldUserId = user.value?.id
+        const targetUserId = newSession?.user?.id
+        if (oldUserId !== targetUserId) {
+          profile.value = null
+          useChatStore().reset()
+          useMessagesStore().stop()
+        }
         session.value = newSession
         user.value = newSession?.user ?? null
-        const targetUserId = newSession?.user?.id
         if (targetUserId) {
           // Asynchronously schedule fetchProfile outside of the onAuthStateChange callback
           setTimeout(async () => {
@@ -118,6 +125,8 @@ export const useAuthStore = defineStore('auth', () => {
       if (data.session && data.user) {
         const chatStore = useChatStore()
         chatStore.reset()
+        useMessagesStore().stop()
+        profile.value = null
         session.value = data.session
         user.value = data.user
         await fetchProfile(data.user.id)
@@ -147,6 +156,7 @@ export const useAuthStore = defineStore('auth', () => {
       profile.value = null
       const chatStore = useChatStore()
       chatStore.reset()
+      useMessagesStore().stop()
       return { success: true }
     } catch (err: any) {
       const msg = err.message || 'Lỗi khi đăng xuất.'

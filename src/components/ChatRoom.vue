@@ -1,7 +1,8 @@
 <template>
   <div class="chat-window">
     <div class="chat-connection" role="status" :class="connection">
-      {{ connection === 'online' ? 'Đã kết nối' : connection === 'connecting' ? 'Đang kết nối...' : 'Mất kết nối — sẽ đồng bộ khi có mạng' }}
+      <span>{{ connection === 'online' ? 'Đã kết nối' : connection === 'connecting' ? 'Đang kết nối...' : 'Mất kết nối — sẽ đồng bộ khi có mạng' }}</span>
+      <button v-if="connection === 'offline' || error" class="reconnect-button" type="button" :disabled="loading" @click="retry">Thử lại</button>
     </div>
     <div ref="scrollEl" class="message-scroll" @scroll="onScroll">
       <div class="history-actions">
@@ -23,6 +24,9 @@
         </div>
       </div>
     </div>
+    <button v-if="unreadCount > 0" class="latest-button" type="button" @click="jumpToLatest">
+      {{ unreadCount }} tin mới — Xem
+    </button>
     <div v-if="error" class="chat-error" role="alert">{{ error }}</div>
     <form class="message-compose" @submit.prevent="send">
       <textarea v-model="draft" rows="2" maxlength="4000" aria-label="Nội dung tin nhắn"
@@ -40,12 +44,14 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { RoomMember } from '@/types/database'
 import { useMessagesStore } from '@/stores/messages'
+import { compareMessages } from '@/utils/messageCursor'
 
 const props = defineProps<{ roomId: string; myUserId: string; members: RoomMember[] }>()
 const store = useMessagesStore()
 const { messages, loading, loadingMore, sending, hasMore, error, connection } = storeToRefs(store)
 const scrollEl = ref<HTMLDivElement | null>(null)
 const draft = ref('')
+const unreadCount = ref(0)
 let keepingScroll = false
 
 const names = computed(() => new Map(props.members.map(member => [
@@ -57,7 +63,17 @@ function timeLabel(value: string) {
 }
 function start() {
   draft.value = ''
+  unreadCount.value = 0
   void store.start(props.roomId, props.myUserId)
+}
+function retry() {
+  unreadCount.value = 0
+  void store.start(props.roomId, props.myUserId)
+}
+function jumpToLatest() {
+  const el = scrollEl.value
+  if (el) el.scrollTop = el.scrollHeight
+  unreadCount.value = 0
 }
 onMounted(start)
 watch(() => [props.roomId, props.myUserId], start)
@@ -76,14 +92,20 @@ async function older() {
 }
 function onScroll() {
   const el = scrollEl.value
-  if (el && el.scrollTop < 75 && hasMore.value && !loading.value && !loadingMore.value) void older()
+  if (!el) return
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) unreadCount.value = 0
+  if (el.scrollTop < 75 && hasMore.value && !loading.value && !loadingMore.value) void older()
 }
-watch(() => messages.value.length, async (_count, prior) => {
+watch(() => messages.value.map(message => message.id), async (current, previous) => {
   const el = scrollEl.value
   if (!el || keepingScroll) return
   const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 180
+  const before = new Set(previous)
+  const last = previous.length ? messages.value.find(m => m.id === previous[previous.length - 1]) : null
+  const added = messages.value.filter(m => !before.has(m.id) && (!last || compareMessages(m, last) > 0))
+  if (!nearBottom && previous.length) unreadCount.value += added.length
   await nextTick()
-  if (prior === 0 || nearBottom) el.scrollTop = el.scrollHeight
+  if (!previous.length || nearBottom) jumpToLatest()
 })
 async function send() {
   if (!draft.value.trim() || sending.value) return
@@ -122,4 +144,10 @@ async function send() {
 .message-compose textarea:focus { outline:1px solid var(--color-blue); }
 .message-compose button { flex:none; min-width:62px; }
 @media(max-width:500px) { .message-content {max-width:82%;} .message-compose {gap:6px;} .message-compose textarea {font-size:16px;} }
+</style>
+
+<style scoped>
+.reconnect-button { border:0; background:transparent; color:var(--color-blue); margin-left:12px; cursor:pointer; text-decoration:underline; font-size:11px; }
+.reconnect-button:disabled { opacity:.5; cursor:default; }
+.latest-button { align-self:center; border:1px solid var(--color-border); border-radius:999px; background:var(--color-card-1); color:var(--color-blue); padding:6px 14px; margin:3px; cursor:pointer; font-size:12px; }
 </style>

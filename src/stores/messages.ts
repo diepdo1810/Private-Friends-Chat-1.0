@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/services/supabase'
 import type { Message } from '@/types/database'
-import { cursorFilter, mergeMessages, type MessageCursor } from '@/utils/messageCursor'
+import { cursorFilter, mergeMessages, newestCursor, EMPTY_ROOM_CURSOR, type MessageCursor } from '@/utils/messageCursor'
 
 const HISTORY_SIZE = 50
 const OLDER_SIZE = 30
@@ -24,6 +24,7 @@ export const useMessagesStore = defineStore('messages', () => {
   let currentUser: string | null = null
   let initialized = false
   let catchupRunning = false
+  let catchupRequested = false
   // Only successful DB fetches advance this anchor. Realtime events alone do NOT
   // advance it: otherwise a new event after reconnect can skip missed inserts.
   let reconciledCursor: MessageCursor | null = null
@@ -41,6 +42,7 @@ export const useMessagesStore = defineStore('messages', () => {
     currentUser = null
     initialized = false
     catchupRunning = false
+    catchupRequested = false
     reconciledCursor = null
     messages.value = []
     loading.value = false
@@ -92,12 +94,7 @@ export const useMessagesStore = defineStore('messages', () => {
       const batch = (data ?? []) as Message[]
       messages.value = mergeMessages(messages.value, batch)
       hasMore.value = batch.length === HISTORY_SIZE
-      if (batch.length) {
-        reconciledCursor = [...batch].sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime() ||
-          b.id.localeCompare(a.id)
-        )[0]
-      }
+      reconciledCursor = newestCursor(batch)
       initialized = true
       // This second read closes the gap between initial query and subscription.
       void catchUp(run, room)
@@ -109,43 +106,37 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   async function catchUp(run: number, room: string) {
-    if (!valid(run, room) || !initialized || catchupRunning) return
+    if (!valid(run, room) || !initialized) return
+    if (catchupRunning) {
+      // Reconnect may arrive while an earlier catch-up is still in flight.
+      // Repeat after it completes instead of dropping the new sync request.
+      catchupRequested = true
+      return
+    }
     catchupRunning = true
     try {
-      if (!reconciledCursor) {
-        // No historical message at startup. Fetch latest snapshot on reconnect.
-        const { data, error: queryError } = await supabase.from('messages')
-          .select('id,room_id,user_id,content,created_at')
-          .eq('room_id', room)
-          .order('created_at', { ascending: false })
-          .order('id', { ascending: false })
-          .limit(HISTORY_SIZE)
-        if (!valid(run, room)) return
-        if (queryError) throw queryError
-        const batch = (data ?? []) as Message[]
-        messages.value = mergeMessages(messages.value, batch)
-        if (batch.length) reconciledCursor = messages.value[messages.value.length - 1]
-        return
-      }
-      let cursor = reconciledCursor
-      // Exhaust backlog in ordered pages; do not use newest realtime event as cursor.
-      for (;;) {
-        const { data, error: queryError } = await supabase.from('messages')
-          .select('id,room_id,user_id,content,created_at')
-          .eq('room_id', room)
-          .or(cursorFilter('newer', cursor))
-          .order('created_at', { ascending: true })
-          .order('id', { ascending: true })
-          .limit(CATCHUP_SIZE)
-        if (!valid(run, room)) return
-        if (queryError) throw queryError
-        const batch = (data ?? []) as Message[]
-        if (!batch.length) break
-        messages.value = mergeMessages(messages.value, batch)
-        cursor = batch[batch.length - 1]
-        reconciledCursor = cursor
-        if (batch.length < CATCHUP_SIZE) break
-      }
+      do {
+        catchupRequested = false
+        let cursor: MessageCursor = reconciledCursor ?? EMPTY_ROOM_CURSOR
+        // Even if initial room was empty, page forward through EVERY missed message.
+        for (;;) {
+          const { data, error: queryError } = await supabase.from('messages')
+            .select('id,room_id,user_id,content,created_at')
+            .eq('room_id', room)
+            .or(cursorFilter('newer', cursor))
+            .order('created_at', { ascending: true })
+            .order('id', { ascending: true })
+            .limit(CATCHUP_SIZE)
+          if (!valid(run, room)) return
+          if (queryError) throw queryError
+          const batch = (data ?? []) as Message[]
+          if (!batch.length) break
+          messages.value = mergeMessages(messages.value, batch)
+          cursor = batch[batch.length - 1]
+          reconciledCursor = cursor
+          if (batch.length < CATCHUP_SIZE) break
+        }
+      } while (catchupRequested && valid(run, room))
     } catch (err) {
       if (valid(run, room)) error.value = err instanceof Error ? err.message : 'Không đồng bộ được tin nhắn.'
     } finally {
