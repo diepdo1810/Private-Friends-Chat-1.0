@@ -1,35 +1,26 @@
 import { describe, it, expect } from 'vitest'
 import { supabase, isSupabaseConfigured } from '../src/services/supabase'
 
-describe('Live Supabase & Database RLS Integration Verification', () => {
+const runLive = process.env.RUN_LIVE_SUPABASE_TESTS === '1'
+describe.skipIf(!runLive)('Live Supabase & Database RLS Integration Verification', () => {
   it('connects to Supabase endpoint and verifies Anonymous role restrictions', async () => {
-    if (!isSupabaseConfigured) {
-      // eslint-disable-next-line no-console
-      console.warn('[Live DB Verification] Skipped: Supabase credentials not configured in environment.')
-      return
-    }
+    if (!isSupabaseConfigured) throw new Error('RUN_LIVE_SUPABASE_TESTS requires Supabase URL and publishable/anon key')
 
     // 1. Anonymous SELECT on public.rooms must NOT return any private rooms
     const { data: rooms, error: roomsError } = await supabase.from('rooms').select('*')
-    if (roomsError && roomsError.code === 'PGRST205') {
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[Live DB Verification] Supabase instance is online, but tables are pending migration.\n' +
-        'Action required: Run supabase/migrations/20261028000000_p1_initial_schema.sql in the Supabase SQL Editor.'
-      )
-      expect(roomsError.code).toBe('PGRST205')
-      return
-    }
+    if (roomsError) throw new Error('Live migration/query failed: ' + roomsError.message)
 
     // When tables are present, RLS must deny anonymous reads
     expect(rooms ?? []).toEqual([])
 
     // 2. Anonymous SELECT on public.room_members must NOT return any member lists
-    const { data: members } = await supabase.from('room_members').select('*')
+    const { data: members, error: membersError } = await supabase.from('room_members').select('*')
+    expect(membersError).toBeNull()
     expect(members ?? []).toEqual([])
 
     // 3. Anonymous SELECT on public.messages must NOT return any messages
-    const { data: messages } = await supabase.from('messages').select('*')
+    const { data: messages, error: messagesError } = await supabase.from('messages').select('*')
+    expect(messagesError).toBeNull()
     expect(messages ?? []).toEqual([])
 
     // 4. Anonymous INSERT into public.messages must be rejected
@@ -38,7 +29,7 @@ describe('Live Supabase & Database RLS Integration Verification', () => {
       user_id: '00000000-0000-0000-0000-000000000002',
       content: 'Unauthorized anonymous probe',
     })
-    expect(insertMsgError).toBeDefined()
+    expect(insertMsgError?.code).toBe('42501')
 
     // 5. Anonymous INSERT into public.room_members must be rejected (no self-joining)
     const { error: joinError } = await supabase.from('room_members').insert({
@@ -46,7 +37,7 @@ describe('Live Supabase & Database RLS Integration Verification', () => {
       user_id: '00000000-0000-0000-0000-000000000002',
       role: 'member',
     })
-    expect(joinError).toBeDefined()
+    expect(joinError?.code).toBe('42501')
   })
 
   it('provides automated audit for authenticated test users when configured in env', async () => {
@@ -55,18 +46,16 @@ describe('Live Supabase & Database RLS Integration Verification', () => {
     const outsiderEmail = process.env.TEST_OUTSIDER_EMAIL
     const outsiderPassword = process.env.TEST_OUTSIDER_PASSWORD
 
-    if (!memberEmail || !memberPassword) {
-      // Expected in normal CI where test accounts are not pre-seeded
-      return
+    if (!isSupabaseConfigured || !memberEmail || !memberPassword || !outsiderEmail || !outsiderPassword) {
+      throw new Error('Live tests require Supabase credentials, TEST_MEMBER_* and TEST_OUTSIDER_*')
     }
 
     // 1. Authenticate as Member
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    const { error: authError } = await supabase.auth.signInWithPassword({
       email: memberEmail,
       password: memberPassword,
     })
     expect(authError).toBeNull()
-    const memberId = authData.user?.id
 
     // 2. Member can view the assigned room
     const { data: memberRooms } = await supabase.from('rooms').select('*')
@@ -86,7 +75,7 @@ describe('Live Supabase & Database RLS Integration Verification', () => {
 
     // 4. Authenticate as Outsider (if provided)
     if (outsiderEmail && outsiderPassword) {
-      const { error: outsiderAuthError } = await supabase.auth.signInWithPassword({
+      const { data: outsiderData, error: outsiderAuthError } = await supabase.auth.signInWithPassword({
         email: outsiderEmail,
         password: outsiderPassword,
       })
@@ -99,10 +88,10 @@ describe('Live Supabase & Database RLS Integration Verification', () => {
       // Outsider cannot insert messages into the room
       const { error: outsiderMsgError } = await supabase.from('messages').insert({
         room_id: memberRooms![0].id,
-        user_id: memberId,
+        user_id: outsiderData.user?.id,
         content: 'Outsider intrusion',
       })
-      expect(outsiderMsgError).toBeDefined()
+      expect(outsiderMsgError?.code).toBe('42501')
 
       await supabase.auth.signOut()
     }

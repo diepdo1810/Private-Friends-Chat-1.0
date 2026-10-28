@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareMessages, cursorFilter, mergeMessages } from '../src/utils/messageCursor'
+import { compareMessages, cursorFilter, mergeMessages, newestCursor, EMPTY_ROOM_CURSOR } from '../src/utils/messageCursor'
 
 const a = { id: '00000000-0000-0000-0000-000000000001', created_at: '2026-10-28T10:00:00Z', content: 'a' }
 const b = { id: '00000000-0000-0000-0000-000000000002', created_at: '2026-10-28T10:00:00Z', content: 'b' }
@@ -13,6 +13,11 @@ describe('message history merging and cursor', () => {
     const merged = mergeMessages([c, a], [a, b, { ...c, content: 'confirmed' }])
     expect(merged.map(x => x.id)).toEqual([a.id, b.id, c.id])
     expect(merged[2].content).toBe('confirmed')
+  })
+  it('retains empty-room lower bound for full reconnect catch-up', () => {
+    expect(cursorFilter('newer', EMPTY_ROOM_CURSOR)).toContain('created_at.gt.1970-01-01')
+    expect(newestCursor([])).toBeNull()
+    expect(newestCursor([b, c, a])).toEqual(c)
   })
   it('paginates tied timestamps using UUID tie-breaker', () => {
     expect(cursorFilter('older', b)).toBe(
