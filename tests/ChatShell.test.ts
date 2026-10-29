@@ -3,6 +3,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ChatShell from '@/views/ChatShell.vue'
+vi.mock('@/services/capacitor', () => ({
+  isNativeMobile: () => false,
+  registerBackButtonHandler: () => () => {},
+  updateStatusBarTheme: vi.fn(),
+}))
 import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 import { useMessagesStore } from '@/stores/messages'
