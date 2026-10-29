@@ -5,7 +5,7 @@
         type="button"
         class="load-more-btn"
         :disabled="loadingMore"
-        @click="$emit('load-more')"
+        @click="handleLoadMore"
       >
         {{ loadingMore ? 'Đang tải tin nhắn cũ...' : 'Tải thêm tin nhắn cũ' }}
       </button>
@@ -27,12 +27,12 @@
         }"
       >
         <i v-if="!item.isMe" class="avatar">
-          {{ getInitials(item.message.sender?.display_name) }}
+          {{ getInitials(displayName(item.message.user_id)) }}
         </i>
 
         <div class="payload">
           <p v-if="!item.isGrouped" class="meta">
-            {{ item.isMe ? 'Bạn' : (item.message.sender?.display_name || 'Thành viên') }}
+            {{ item.isMe ? 'Bạn' : displayName(item.message.user_id) }}
             <time>{{ formatMessageTime(item.message.created_at) }}</time>
           </p>
 
@@ -42,12 +42,13 @@
         </div>
       </article>
     </template>
+    <button v-if="unreadCount > 0" type="button" class="new-messages-btn" @click="scrollToBottom(true)">{{ unreadCount }} tin mới — Xem</button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, nextTick, watch } from 'vue'
-import type { Message } from '@/types/database'
+import type { Message, RoomMember } from '@/types/database'
 import {
   isConsecutiveMessage,
   formatDateDivider,
@@ -61,19 +62,27 @@ const props = withDefaults(
     currentUserId?: string | null
     hasMore?: boolean
     loadingMore?: boolean
+    members?: RoomMember[]
+    loadOlder?: () => Promise<void>
   }>(),
   {
     currentUserId: null,
     hasMore: false,
     loadingMore: false,
+    members: () => [],
+    loadOlder: async () => {},
   }
 )
 
-const emit = defineEmits<{
-  (e: 'load-more'): void
-}>()
-
 const containerRef = ref<HTMLDivElement | null>(null)
+const unreadCount = ref(0)
+const isLoadingOlder = ref(false)
+const memberNames = computed(() => new Map(
+  props.members.map(member => [member.user_id, member.profile?.display_name || 'Thành viên'])
+))
+function displayName(userId: string): string {
+  return memberNames.value.get(userId) ?? 'Thành viên'
+}
 
 interface ProcessedDayItem {
   type: 'day'
@@ -128,40 +137,62 @@ const processedItems = computed<ProcessedItem[]>(() => {
   return items
 })
 
+async function handleLoadMore() {
+  if (isLoadingOlder.value || props.loadingMore || !props.hasMore) return
+  const el = containerRef.value
+  if (!el) return
+  isLoadingOlder.value = true
+  const previousHeight = el.scrollHeight
+  const previousTop = el.scrollTop
+  try {
+    await props.loadOlder()
+    await nextTick()
+    el.scrollTop = previousTop + el.scrollHeight - previousHeight
+  } finally {
+    isLoadingOlder.value = false
+  }
+}
+
 function handleScroll() {
   const el = containerRef.value
   if (!el) return
-  if (el.scrollTop === 0 && props.hasMore && !props.loadingMore) {
-    emit('load-more')
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 100) unreadCount.value = 0
+  if (el.scrollTop < 30 && props.hasMore && !props.loadingMore && !isLoadingOlder.value) {
+    void handleLoadMore()
   }
 }
 
-function scrollToBottom(smooth = false) {
-  nextTick(() => {
-    const el = containerRef.value
-    if (!el) return
-    el.scrollTo({
-      top: el.scrollHeight,
-      behavior: smooth ? 'smooth' : 'auto',
-    })
-  })
+async function scrollToBottom(smooth = false) {
+  await nextTick()
+  const el = containerRef.value
+  if (!el) return
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+  unreadCount.value = 0
 }
 
-// Watch message length to autoscroll when new message arrives at bottom
+// Compare identity/order, not only length. Older history must not steal scroll.
 watch(
-  () => props.messages.length,
-  (newLen, oldLen) => {
-    if (newLen > (oldLen || 0)) {
-      nextTick(() => {
-        scrollToBottom(false)
-      })
+  () => props.messages.map(message => message.id),
+  async (ids, previous) => {
+    const el = containerRef.value
+    if (!el || isLoadingOlder.value || ids.length <= previous.length) return
+    if (!previous.length) {
+      await scrollToBottom(false)
+      return
     }
+    if (ids[0] !== previous[0]) return
+    const priorIds = new Set(previous)
+    const newCount = ids.filter(id => !priorIds.has(id)).length
+    if (!newCount) return
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160
+    await nextTick()
+    if (nearBottom) await scrollToBottom(false)
+    else unreadCount.value += newCount
   }
 )
 
-defineExpose({
-  scrollToBottom,
-})
+defineExpose({ scrollToBottom })
+
 </script>
 
 <style scoped>
@@ -313,4 +344,9 @@ defineExpose({
   font-size: 10px;
   color: var(--muted);
 }
+</style>
+
+<style scoped>
+.messages { position: relative; }
+.new-messages-btn { position: sticky; bottom: 10px; align-self: center; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--blue); font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 3px 10px var(--shadow); }
 </style>

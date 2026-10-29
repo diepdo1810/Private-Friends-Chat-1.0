@@ -62,23 +62,22 @@ const props = withDefaults(
   defineProps<{
     disabled?: boolean
     isSending?: boolean
+    sendMessage?: (text: string) => Promise<boolean>
   }>(),
   {
     disabled: false,
     isSending: false,
+    sendMessage: async () => false,
   }
 )
 
-const emit = defineEmits<{
-  (e: 'send', text: string): void
-}>()
-
 const draft = ref('')
+const pending = ref(false)
 const showEmojiPicker = ref(false)
 const textareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const canSend = computed(() => {
-  return !props.disabled && !props.isSending && draft.value.trim().length > 0
+  return !props.disabled && !props.isSending && !pending.value && draft.value.trim().length > 0
 })
 
 function adjustHeight() {
@@ -140,16 +139,22 @@ function handleKeyDown(e: KeyboardEvent) {
   }
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   if (!canSend.value) return
   const text = draft.value.trim()
   if (!text) return
 
-  emit('send', text)
-  draft.value = ''
-  nextTick(() => {
-    adjustHeight()
-  })
+  pending.value = true
+  try {
+    const ok = await props.sendMessage(text)
+    if (ok && draft.value.trim() === text) {
+      draft.value = ''
+      await nextTick()
+      adjustHeight()
+    }
+  } finally {
+    pending.value = false
+  }
 }
 
 onMounted(() => {
