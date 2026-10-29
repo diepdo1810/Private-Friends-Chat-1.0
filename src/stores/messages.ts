@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase, isSupabaseConfigured } from '@/services/supabase'
 import type { Message } from '@/types/database'
+import { publishIncomingMessage } from '@/services/notifications'
 import { cursorFilter, mergeMessages, newestCursor, EMPTY_ROOM_CURSOR, type MessageCursor } from '@/utils/messageCursor'
 
 const HISTORY_SIZE = 50
@@ -69,7 +70,11 @@ export const useMessagesStore = defineStore('messages', () => {
       }, payload => {
         if (!valid(run, room)) return
         const message = payload.new as Message
-        if (message.room_id === room) messages.value = mergeMessages(messages.value, [message])
+        if (message.room_id === room) {
+          const wasPresent = messages.value.some(item => item.id === message.id)
+          messages.value = mergeMessages(messages.value, [message])
+          if (!wasPresent && message.user_id !== currentUser) publishIncomingMessage(message)
+        }
       })
       .subscribe(status => {
         if (!valid(run, room)) return

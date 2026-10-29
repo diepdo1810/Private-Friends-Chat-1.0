@@ -54,6 +54,12 @@
         </div>
       </div>
       <div class="group-actions">
+        <div class="notification-settings">
+          <button type="button" class="notification-toggle" @click="toggleNotifications">
+            {{ notificationsEnabled ? 'Tắt thông báo' : (isNativeMobile() ? 'Bật nhắc trong ứng dụng' : 'Bật thông báo trình duyệt') }}
+          </button>
+          <small v-if="notificationError" role="alert">{{ notificationError }}</small>
+        </div>
         <button type="button" class="logout-button" @click="$emit('logout')">Đăng xuất</button>
         <a href="https://github.com/diepdo1810/Private-Friends-Chat-1.0" target="_blank" rel="noopener noreferrer">Mã nguồn AGPL-3.0</a>
       </div>
@@ -62,7 +68,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { isNativeMobile } from '@/services/capacitor'
+import { isNotificationEnabled, enableNotifications, disableNotifications } from '@/services/notifications'
 import { storeToRefs } from 'pinia'
 import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
@@ -78,6 +86,24 @@ const authStore = useAuthStore()
 
 const { roomMembers } = storeToRefs(chatStore)
 const { user } = storeToRefs(authStore)
+const notificationsEnabled = ref(false)
+const notificationError = ref('')
+watch(user, next => {
+  notificationsEnabled.value = next ? isNotificationEnabled(next.id) : false
+}, { immediate: true })
+async function toggleNotifications() {
+  const uid = user.value?.id
+  if (!uid) return
+  notificationError.value = ''
+  if (notificationsEnabled.value) {
+    disableNotifications(uid)
+    notificationsEnabled.value = false
+    return
+  }
+  const granted = await enableNotifications(uid, isNativeMobile())
+  notificationsEnabled.value = granted
+  if (!granted) notificationError.value = 'Chưa được cấp quyền thông báo.'
+}
 
 const orbitMembers = computed(() => {
   return roomMembers.value.slice(0, 4)
@@ -269,4 +295,10 @@ const orbitMembers = computed(() => {
 .group-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 18px; }
 .logout-button { min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 700; cursor: pointer; }
 .group-actions a { color: var(--blue); font-size: 12px; }
+</style>
+
+<style scoped>
+.notification-settings { display:flex; flex-direction:column; gap:5px; }
+.notification-settings small { font-size: 11px; color: var(--coral); }
+.notification-toggle { min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 700; cursor: pointer; }
 </style>

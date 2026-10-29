@@ -6,7 +6,7 @@
         :roomName="activeRoom?.name"
         :memberCount="roomMembers.length"
         @toggle-theme="toggleTheme"
-        @open-group="activeScreen = 'group'"
+        @open-group="handleNavigate('group')"
       />
 
       <OfflineBanner
@@ -39,7 +39,7 @@
 
     <!-- Screen 2: Group Screen -->
     <section v-show="activeScreen === 'group'" class="four-together-screen group-screen">
-      <GroupScreen @back="activeScreen = 'chat'" @logout="handleLogout" />
+      <GroupScreen @back="handleNavigate('chat')" @logout="handleLogout" />
       <p v-if="logoutError" class="logout-error" role="alert">{{ logoutError }}</p>
 
       <BottomNav
@@ -57,6 +57,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
 import { useMessagesStore } from '@/stores/messages'
 import { registerBackButtonHandler, updateStatusBarTheme } from '@/services/capacitor'
+import { setActiveChatVisible } from '@/services/notifications'
 import ChatHeader from '@/components/chat/ChatHeader.vue'
 import OfflineBanner from '@/components/chat/OfflineBanner.vue'
 import MessageBubbleList from '@/components/chat/MessageBubbleList.vue'
@@ -86,6 +87,7 @@ const isOffline = computed(() => {
 
 function handleNavigate(tab: 'chat' | 'group') {
   activeScreen.value = tab
+  setActiveChatVisible(tab === 'chat')
 }
 
 async function handleSendMessage(text: string): Promise<boolean> {
@@ -149,7 +151,14 @@ watch(
   { immediate: true }
 )
 
+function handleOpenChatNotification() {
+  activeScreen.value = 'chat'
+  setActiveChatVisible(true)
+}
+
 onMounted(async () => {
+  setActiveChatVisible(true)
+  window.addEventListener('private-friends:open-chat', handleOpenChatNotification)
   // 1. Register hardware back button
   unregisterBack = registerBackButtonHandler(20, () => {
     if (activeScreen.value === 'group') {
@@ -171,6 +180,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('private-friends:open-chat', handleOpenChatNotification)
+  setActiveChatVisible(false)
   disposed = true
   messagesStore.stop()
   unregisterBack?.()
