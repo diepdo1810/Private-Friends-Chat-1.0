@@ -210,3 +210,54 @@ Dự án đã tích hợp workflow tự động: `.github/workflows/android.yml`
 | GitHub Actions Android Build Workflow | **PASS** | Cấu hình `.github/workflows/android.yml` upload artifact `app-debug` |
 | Kiểm thử trên thiết bị vật lý thật | **NOT TESTED** | Môi trường agent không gắn thiết bị ngoại vi vật lý |
 
+---
+
+## P5 — Four Together Chat UI Implementation
+
+Hiện thực hóa ngôn ngữ thiết kế **Four Together / Chat-first** (theo [Issue #9](https://github.com/diepdo1810/Private-Friends-Chat-1.0/issues/9) và thiết kế tham chiếu `four-together-chat-first.html` / `four-together-chat-first-states.webp`), xây dựng giao diện ứng dụng chat tối giản, ấm áp và thanh lịch dành cho nhóm 4 người bạn trên một codebase thống nhất (Web & Android Capacitor).
+
+### 1. Đặc điểm Thiết kế & Trải nghiệm Người dùng
+- **Trải nghiệm Chat-first**: Sau khi đăng nhập, người dùng được đưa thẳng vào phòng trò chuyện chính mà không cần bước chọn phòng trung gian.
+- **Header Thanh Lịch (`ChatHeader`)**:
+  - Huy hiệu đại diện nhóm "PF" (Private Friends) nổi bật.
+  - Tên phòng "Nhóm 4 người bạn" và hiển thị trạng thái kết nối / số thành viên ("4 thành viên").
+  - Phím bấm chuyển đổi giao diện Sáng / Tối (Dark / Light mode).
+  - Phím tắt mở nhanh màn hình thông tin nhóm.
+- **Danh sách Tin nhắn Thông minh (`MessageBubbleList`)**:
+  - Nhóm các tin nhắn liên tiếp gửi bởi cùng một tác giả trong khoảng cách < 5 phút để tạo giao diện gọn gàng.
+  - Phân cách mốc thời gian rõ ràng ("Hôm nay", "Hôm qua", hoặc định dạng ngày tháng tiếng Việt).
+  - Khung bong bóng chat màu ấm áp (`--bubble`, `--bubble-me`, `--coral-wash`).
+  - Thanh thông báo tin nhắn mới khi người dùng đang cuộn xem lại lịch sử cũ.
+- **Khung Soạn Thảo Tin Nhắn (`ChatComposer`)**:
+  - Tự động co giãn từ 1 đến 5 dòng theo nội dung gõ (sử dụng `field-sizing: content` với fallback linh hoạt).
+  - Hỗ trợ bộ chọn Emoji Unicode chuẩn (`EmojiPicker`) được phân nhóm chủ đề, chèn chuẩn xác tại vị trí con trỏ (caret).
+  - Hỗ trợ phím Enter để gửi trên máy tính / Shift+Enter để xuống dòng; trên điện thoại Enter xuống dòng thuận tiện; chống gửi nhầm khi đang gõ Telex/VNI IME tiếng Việt (`isComposing`).
+  - Giữ lại nội dung nháp trong ô nhập khi gửi gặp lỗi mạng để người dùng không bị mất tin nhắn.
+- **Đầy đủ 3 Trạng thái Theo Thiết kế Nguyên mẫu**:
+  1. *Trạng thái Bình thường (Normal Chat)*: Đọc và gửi tin nhắn mượt mà.
+  2. *Trạng thái Trả lời (Reply Mode)*: Khung preview tin nhắn được trả lời với nút hủy nhanh (sẵn sàng cho P1).
+  3. *Trạng thái Ngoại tuyến (Offline Banner)*: Banner cảnh báo "Mất kết nối Internet" với nút bấm "Thử lại ngay".
+- **Màn hình Nhóm Ấm áp ("Ở đây cùng nhau." - `GroupScreen`)**:
+  - Hiệu ứng quỹ đạo 4 avatar lồng ghép tinh tế.
+  - Danh sách 4 thành viên lấy động từ Supabase `room_members` và `profiles` kèm huy hiệu "Bạn" và vai trò (Chủ nhóm / Thành viên).
+- **Thanh Điều hướng Đáy (`BottomNav`)**:
+  - Chuyển đổi nhanh 2 tab chính: "Hội thoại" và "Nhóm".
+- **Tương thích Android Native**:
+  - Tích hợp sâu nút Back vật lý: đóng modal/emoji -> đóng màn hình nhóm về chat -> xác nhận thoát app.
+  - Tự động điều chỉnh status bar theo theme Sáng/Tối.
+  - Safe area padding chuẩn xác với tai thỏ và phím điều hướng ảo.
+
+### 2. Bảng Kiểm Tra & Đánh Giá Tiêu Chí (P5 Acceptance Matrix)
+| Hạng mục / Tiêu chí | Trạng thái | Ghi chú kiểm chứng |
+| :--- | :---: | :--- |
+| Không thay đổi backend / schema Supabase | **PASS** | Giữ nguyên 4 bảng `profiles`, `rooms`, `room_members`, `messages` |
+| Không sửa nhánh `next`, làm việc trên `feature/p5-four-together-chat-ui` | **PASS** | Nhánh tách từ `mvp`, `next` không bị can thiệp |
+| Tách biệt rõ ràng P0 và P1 | **PASS** | Hoàn thành toàn diện P0 (Chat-first, Header, Group, Composer, Bubble list, Offline, Theme, Navigation) |
+| Web Typecheck (`yarn typecheck`) | **PASS** | 0 lỗi TypeScript |
+| Web Test Suite (`yarn test`) | **PASS** | 51/51 unit tests passed (12 test suites) |
+| Web Production Build (`yarn build`) | **PASS** | Bundle sạch không warning/error (dist/ 409kB) |
+| Capacitor Android Sync (`npx cap sync android`) | **PASS** | Đồng bộ assets dist sang `android/` hoàn hảo |
+| Khung soạn thảo co giãn 1-5 dòng & Emoji | **PASS** | Hoạt động trơn tru với IME tiếng Việt |
+| Danh sách thành viên lấy động từ DB | **PASS** | Tự động lấy danh sách 4 thành viên từ Supabase |
+
+

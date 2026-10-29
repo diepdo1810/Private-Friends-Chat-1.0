@@ -1,329 +1,193 @@
 <template>
-  <div class="app-container">
-    <!-- Left Icon Sidebar -->
-    <Sidebar @open-about="showAbout = true" />
+  <div class="four-together-shell">
+    <!-- Screen 1: Chat Screen -->
+    <section v-show="activeScreen === 'chat'" class="four-together-screen chat-screen">
+      <ChatHeader
+        :roomName="activeRoom?.name"
+        :memberCount="roomMembers.length"
+        @toggle-theme="toggleTheme"
+        @open-group="activeScreen = 'group'"
+      />
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <!-- Session / Room List Panel -->
-      <section class="session-panel" :class="{ 'hidden-mobile': mobileView === 'chat' }">
-        <header class="session-header">
-          <h2>Hội thoại</h2>
-          <span class="ss-badge primary">1 Phòng</span>
-        </header>
+      <OfflineBanner
+        :visible="isOffline"
+        @retry="handleRetry"
+      />
 
-        <div class="session-list">
-          <div v-if="loading" style="text-align: center; padding: 20px; color: var(--color-font-2);">
-            <font-awesome-icon :icon="['fas', 'spinner']" class="spinner" />
-            <div style="margin-top: 8px; font-size: 13px;">Đang tải phòng...</div>
-          </div>
+      <template v-if="activeRoom">
+        <MessageBubbleList
+          ref="messageListRef"
+          :messages="messages"
+          :members="roomMembers"
+          :currentUserId="user?.id"
+          :hasMore="hasMore"
+          :loadingMore="loadingMore"
+          :loadOlder="messagesStore.loadOlder"
+        />
+        <ChatComposer :isSending="sending" :sendMessage="handleSendMessage" />
+      </template>
+      <div v-else class="room-status" role="status">
+        <p>{{ roomsLoading ? 'Đang tải phòng...' : (roomsError || 'Chưa có phòng chat được cấp quyền.') }}</p>
+        <button v-if="!roomsLoading" type="button" @click="loadRoomsAndSelect">Thử tải lại phòng</button>
+      </div>
 
-          <template v-else-if="rooms.length > 0">
-            <RoomCard
-              v-for="room in rooms"
-              :key="room.id"
-              :room="room"
-              :selected="activeRoom?.id === room.id"
-              :member-count="roomMembers.length"
-              @click="handleSelectRoom(room)"
-            />
-          </template>
+      <BottomNav
+        :activeTab="activeScreen"
+        @navigate="handleNavigate"
+      />
+    </section>
 
-          <div v-else class="empty-state">
-            <font-awesome-icon :icon="['fas', 'door-closed']" style="font-size: 28px; margin-bottom: 8px;" />
-            <p>Không tìm thấy phòng chat nào mà bạn được cấp quyền.</p>
-          </div>
-        </div>
-      </section>
+    <!-- Screen 2: Group Screen -->
+    <section v-show="activeScreen === 'group'" class="four-together-screen group-screen">
+      <GroupScreen @back="activeScreen = 'chat'" @logout="handleLogout" />
+      <p v-if="logoutError" class="logout-error" role="alert">{{ logoutError }}</p>
 
-      <!-- Active Chat Room Panel -->
-      <section class="chat-container" :class="{ 'hidden-mobile': mobileView === 'rooms' }">
-        <!-- Room Header -->
-        <header v-if="activeRoom" class="chat-header">
-          <div class="chat-header-info">
-            <button
-              class="mobile-back-btn"
-              title="Quay lại danh sách phòng"
-              aria-label="Quay lại danh sách phòng"
-              @click="mobileView = 'rooms'"
-            >
-              <font-awesome-icon :icon="['fas', 'chevron-left']" />
-            </button>
-            <div class="chat-header-avatar">
-              PF
-            </div>
-            <div>
-              <h2 class="chat-header-title">{{ activeRoom.name }}</h2>
-              <p class="chat-header-desc">
-                {{ roomMembers.length }} thành viên tham gia &bull; Phòng chat riêng tư
-              </p>
-            </div>
-          </div>
-
-          <div class="chat-header-actions">
-            <button
-              class="ss-button secondary"
-              style="height: 36px; padding: 0 12px; font-size: 13px;"
-              @click="showMembers = !showMembers"
-            >
-              <font-awesome-icon :icon="['fas', 'users']" />
-              <span>Thành viên ({{ roomMembers.length }})</span>
-            </button>
-          </div>
-        </header>
-
-        <!-- Room Main Body -->
-        <div class="chat-body">
-          <ChatRoom v-if="activeRoom && user" :room-id="activeRoom.id" :my-user-id="user.id" :members="roomMembers" />
-          <div v-else class="chat-placeholder">Chọn phòng để bắt đầu nhắn tin.</div>
-
-          <!-- Members Drawer / Modal -->
-          <div v-if="showMembers" class="members-panel ss-card">
-            <div class="members-header">
-              <h4>Danh sách thành viên ({{ roomMembers.length }})</h4>
-              <button class="close-btn" @click="showMembers = false">
-                <font-awesome-icon :icon="['fas', 'xmark']" />
-              </button>
-            </div>
-
-            <div class="members-list">
-              <div
-                v-for="member in roomMembers"
-                :key="member.user_id"
-                class="member-item"
-              >
-                <div class="member-avatar">
-                  {{ (member.profile?.display_name || 'U').charAt(0).toUpperCase() }}
-                </div>
-                <div class="member-details">
-                  <div class="member-name">
-                    {{ member.profile?.display_name || 'Thành viên' }}
-                    <span v-if="member.user_id === user?.id" class="ss-badge primary" style="font-size: 10px;">Bạn</span>
-                  </div>
-                  <div class="member-role">
-                    {{ member.role === 'owner' ? 'Trưởng nhóm' : 'Thành viên' }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- About Modal -->
-    <AboutModal v-if="showAbout" @close="showAbout = false" />
+      <BottomNav
+        :activeTab="activeScreen"
+        @navigate="handleNavigate"
+      />
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
-import { registerBackButtonHandler } from '@/services/capacitor'
-import Sidebar from '@/components/Sidebar.vue'
-import RoomCard from '@/components/RoomCard.vue'
-import AboutModal from '@/components/AboutModal.vue'
-import ChatRoom from '@/components/ChatRoom.vue'
+import { useMessagesStore } from '@/stores/messages'
+import { registerBackButtonHandler, updateStatusBarTheme } from '@/services/capacitor'
+import ChatHeader from '@/components/chat/ChatHeader.vue'
+import OfflineBanner from '@/components/chat/OfflineBanner.vue'
+import MessageBubbleList from '@/components/chat/MessageBubbleList.vue'
+import ChatComposer from '@/components/chat/ChatComposer.vue'
+import GroupScreen from '@/components/group/GroupScreen.vue'
+import BottomNav from '@/components/navigation/BottomNav.vue'
 
 const authStore = useAuthStore()
 const chatStore = useChatStore()
+const messagesStore = useMessagesStore()
 
 const { user } = storeToRefs(authStore)
-const { rooms, activeRoom, roomMembers, loading } = storeToRefs(chatStore)
+const { rooms, activeRoom, roomMembers, loading: roomsLoading, error: roomsError } = storeToRefs(chatStore)
+const { messages, loadingMore, sending, hasMore, connection } = storeToRefs(messagesStore)
 
-const showAbout = ref(false)
-const showMembers = ref(false)
-const mobileView = ref<'rooms' | 'chat'>('rooms')
+const activeScreen = ref<'chat' | 'group'>('chat')
+const messageListRef = ref<InstanceType<typeof MessageBubbleList> | null>(null)
+const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
 let unregisterBack: (() => void) | null = null
+let disposed = false
+const logoutError = ref<string | null>(null)
 
-function handleSelectRoom(room: any) {
-  chatStore.selectRoom(room)
-  mobileView.value = 'chat'
+const isOffline = computed(() => {
+  return !isOnline.value || connection.value === 'offline'
+})
+
+function handleNavigate(tab: 'chat' | 'group') {
+  activeScreen.value = tab
 }
 
+async function handleSendMessage(text: string): Promise<boolean> {
+  if (!activeRoom.value) return false
+  const ok = await messagesStore.sendText(text)
+  if (ok) void messageListRef.value?.scrollToBottom(true)
+  return ok
+}
+
+async function handleLogout() {
+  const result = await authStore.logout()
+  logoutError.value = result.success ? null : (result.error || 'Không thể đăng xuất.')
+}
+
+async function loadRoomsAndSelect() {
+  await chatStore.fetchRooms()
+  if (disposed) return
+  if (!activeRoom.value && rooms.value.length > 0) {
+    await chatStore.selectRoom(rooms.value[0])
+  }
+}
+
+function handleRetry() {
+  isOnline.value = typeof navigator !== 'undefined' ? navigator.onLine : true
+  messagesStore.syncAfterResume()
+}
+
+function toggleTheme() {
+  if (typeof document === 'undefined') return
+  const current = document.documentElement.getAttribute('data-theme')
+  const next = current === 'dark' ? 'light' : 'dark'
+  document.documentElement.setAttribute('data-theme', next)
+  localStorage.setItem('theme', next)
+  updateStatusBarTheme(next === 'dark')
+}
+
+function handleOnline() {
+  isOnline.value = true
+  messagesStore.syncAfterResume()
+}
+
+function handleOffline() {
+  isOnline.value = false
+}
+
+function handleKeyboardShow() {
+  messageListRef.value?.scrollToBottom(true)
+}
+
+// Watch activeRoom and start messages subscription
+watch(
+  [() => activeRoom.value?.id, () => user.value?.id],
+  ([roomId, userId]) => {
+    if (roomId && userId) {
+      void messagesStore.start(roomId, userId)
+      void chatStore.fetchRoomMembers(roomId)
+    } else {
+      messagesStore.stop()
+    }
+  },
+  { immediate: true }
+)
+
 onMounted(async () => {
+  // 1. Register hardware back button
   unregisterBack = registerBackButtonHandler(20, () => {
-    if (showAbout.value) {
-      showAbout.value = false
-      return true
-    }
-    if (showMembers.value) {
-      showMembers.value = false
-      return true
-    }
-    if (mobileView.value === 'chat') {
-      mobileView.value = 'rooms'
+    if (activeScreen.value === 'group') {
+      activeScreen.value = 'chat'
       return true
     }
     return false
   })
 
-  await chatStore.fetchRooms()
+  // 2. Network status listeners
+  if (typeof window !== 'undefined') {
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('capacitor:keyboard-did-show', handleKeyboardShow)
+  }
+
+  // 3. Fetch rooms without masking missing memberships.
+  await loadRoomsAndSelect()
 })
 
 onUnmounted(() => {
+  disposed = true
+  messagesStore.stop()
   unregisterBack?.()
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('online', handleOnline)
+    window.removeEventListener('offline', handleOffline)
+    window.removeEventListener('capacitor:keyboard-did-show', handleKeyboardShow)
+  }
 })
 </script>
 
 <style scoped>
-.empty-state {
-  text-align: center;
-  padding: 30px 16px;
-  color: var(--color-font-2);
-  font-size: 13px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.chat-screen,
+.group-screen {
+  height: 100%;
 }
-
-.foundation-notice {
-  max-width: 620px;
-  margin: 30px auto;
-  padding: 32px 28px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
-}
-
-.foundation-icon {
-  width: 58px;
-  height: 58px;
-  border-radius: var(--radius-full);
-  background: var(--color-green-light);
-  color: var(--color-green);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-}
-
-.foundation-notice h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-font);
-}
-
-.foundation-notice p {
-  font-size: 14px;
-  color: var(--color-font-2);
-  line-height: 1.6;
-}
-
-.features-status {
-  width: 100%;
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  text-align: left;
-}
-
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: var(--radius-md);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.status-item.verified {
-  background: var(--color-green-light);
-  color: var(--color-green);
-  border: 1px solid rgba(45, 164, 78, 0.2);
-}
-
-.status-item.pending {
-  background: var(--color-card-2);
-  color: var(--color-font-2);
-  border: 1px solid var(--color-border);
-}
-
-.members-panel {
-  max-width: 620px;
-  width: 100%;
-  margin: 20px auto 0;
-  padding: 20px;
-}
-
-.members-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.members-header h4 {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-font);
-}
-
-.close-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-font-2);
-  cursor: pointer;
-  font-size: 16px;
-  padding: 4px;
-}
-
-.close-btn:hover {
-  color: var(--color-font);
-}
-
-.members-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.member-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
-  border-radius: var(--radius-md);
-  background: var(--color-card-2);
-}
-
-.member-avatar {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--color-blue), #8059d9);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.member-details {
-  flex: 1;
-}
-
-.member-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-font);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.member-role {
-  font-size: 12px;
-  color: var(--color-font-2);
-}
+.room-status { flex: 1; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 24px; color: var(--muted); text-align: center; }
+.room-status button { padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--blue); background: var(--panel); cursor: pointer; }
+.logout-error { margin: 8px 16px; color: var(--coral); font-size: 12px; }
 </style>
