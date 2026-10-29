@@ -55,7 +55,7 @@
       </div>
       <div class="group-actions">
         <div class="notification-settings">
-          <button type="button" class="logout-button" @click="toggleNotifications">
+          <button type="button" class="notification-toggle" @click="toggleNotifications">
             {{ notificationsEnabled ? 'Tắt thông báo' : (isNativeMobile() ? 'Bật nhắc trong ứng dụng' : 'Bật thông báo trình duyệt') }}
           </button>
           <small v-if="notificationError" role="alert">{{ notificationError }}</small>
@@ -300,4 +300,5 @@ const orbitMembers = computed(() => {
 <style scoped>
 .notification-settings { display:flex; flex-direction:column; gap:5px; }
 .notification-settings small { font-size: 11px; color: var(--coral); }
+.notification-toggle { min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 700; cursor: pointer; }
 </style>
