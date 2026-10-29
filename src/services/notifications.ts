@@ -62,6 +62,7 @@ export function showDesktopNotification(messageId: string): boolean {
     })
     n.onclick = () => {
       window.focus()
+      window.dispatchEvent(new CustomEvent('private-friends:open-chat'))
       n.close()
     }
     return true

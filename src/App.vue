@@ -19,7 +19,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useMessagesStore } from '@/stores/messages'
@@ -35,6 +35,7 @@ const { loading, isAuthenticated } = storeToRefs(authStore)
 let cleanupCapacitor: (() => void) | null = null
 let cleanupNotifications: (() => void) | null = null
 const toast = ref<string | null>(null)
+watch(() => authStore.user?.id, () => { toast.value = null })
 
 function dismissToast() {
   toast.value = null
