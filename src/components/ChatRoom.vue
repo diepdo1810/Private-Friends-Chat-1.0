@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import type { RoomMember } from '@/types/database'
 import { useMessagesStore } from '@/stores/messages'
@@ -61,34 +61,15 @@ function label(id: string) { return names.value.get(id) ?? 'Thành viên' }
 function timeLabel(value: string) {
   return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
 }
-function start() {
-  draft.value = ''
-  unreadCount.value = 0
-  void store.start(props.roomId, props.myUserId)
-}
 function retry() {
   unreadCount.value = 0
-  void store.start(props.roomId, props.myUserId)
+  void store.syncAfterResume()
 }
 function jumpToLatest() {
   const el = scrollEl.value
   if (el) el.scrollTop = el.scrollHeight
   unreadCount.value = 0
 }
-function onKeyboardShow() {
-  void nextTick(() => {
-    jumpToLatest()
-  })
-}
-onMounted(() => {
-  start()
-  window.addEventListener('capacitor:keyboard-did-show', onKeyboardShow)
-})
-watch(() => [props.roomId, props.myUserId], start)
-onBeforeUnmount(() => {
-  store.stop()
-  window.removeEventListener('capacitor:keyboard-did-show', onKeyboardShow)
-})
 
 async function older() {
   const el = scrollEl.value
