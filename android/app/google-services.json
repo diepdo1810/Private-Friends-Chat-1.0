@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "145569208900",
+    "project_id": "private-friends-chat-3e967",
+    "storage_bucket": "private-friends-chat-3e967.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:145569208900:android:e13368d03b17e6132fba11",
+        "android_client_info": {
+          "package_name": "com.diepdo.privatefriendschat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAH-tK28gIQ8O9nZBbZBC197gRyrmoBSOQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
