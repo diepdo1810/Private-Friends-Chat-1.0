@@ -1222,6 +1222,14 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@capacitor/push-notifications@npm:6.0.5":
+  version: 6.0.5
+  resolution: "@capacitor/push-notifications@npm:6.0.5"
+  peerDependencies:
+    "@capacitor/core": ^6.0.0
+  languageName: node
+  linkType: hard
+
 "@capacitor/status-bar@npm:6.0.3":
   version: 6.0.3
   resolution: "@capacitor/status-bar@npm:6.0.3"
@@ -4892,6 +4900,7 @@ __metadata:
     "@capacitor/cli": "npm:6.2.3"
     "@capacitor/core": "npm:6.2.3"
     "@capacitor/keyboard": "npm:6.0.4"
+    "@capacitor/push-notifications": "npm:6.0.5"
     "@capacitor/status-bar": "npm:6.0.3"
     "@fortawesome/fontawesome-svg-core": "npm:^6.7.2"
     "@fortawesome/free-regular-svg-icons": "npm:^6.7.2"

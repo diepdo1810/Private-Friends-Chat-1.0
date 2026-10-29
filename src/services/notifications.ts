@@ -1,4 +1,6 @@
 import type { Message } from '@/types/database'
+import { isNativeMobile } from '@/services/capacitor'
+import { disableNativePush, startNativePush } from '@/services/nativePush'
 
 export type IncomingMessage = Pick<Message, 'id' | 'room_id' | 'user_id' | 'created_at'>
 type MessageListener = (message: IncomingMessage) => void
@@ -36,10 +38,15 @@ export function isNotificationEnabled(userId: string): boolean {
 
 export function disableNotifications(userId: string) {
   try { localStorage.removeItem('private-friends:notifications:' + userId) } catch { /* ignored */ }
+  if (isNativeMobile()) void disableNativePush(userId)
 }
 
 export async function enableNotifications(userId: string, isNative: boolean): Promise<boolean> {
   if (!userId) return false
+  if (isNative && isNativeMobile()) {
+    const started = await startNativePush(userId, true)
+    if (!started) return false
+  }
   if (!isNative && typeof Notification !== 'undefined') {
     const permission = Notification.permission === 'default'
       ? await Notification.requestPermission()

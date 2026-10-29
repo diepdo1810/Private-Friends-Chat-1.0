@@ -25,6 +25,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useMessagesStore } from '@/stores/messages'
 import { initCapacitorApp, isNativeMobile } from '@/services/capacitor'
 import { onIncomingMessage, isNotificationEnabled, isActiveChatVisible, showDesktopNotification } from '@/services/notifications'
+import { startNativePush, stopNativePushListeners } from '@/services/nativePush'
 import LoginView from '@/views/LoginView.vue'
 import ChatShell from '@/views/ChatShell.vue'
 
@@ -35,7 +36,11 @@ const { loading, isAuthenticated } = storeToRefs(authStore)
 let cleanupCapacitor: (() => void) | null = null
 let cleanupNotifications: (() => void) | null = null
 const toast = ref<string | null>(null)
-watch(() => authStore.user?.id, () => { toast.value = null })
+watch(() => authStore.user?.id, userId => {
+  toast.value = null
+  if (!userId) void stopNativePushListeners()
+  else if (isNativeMobile() && isNotificationEnabled(userId)) void startNativePush(userId)
+})
 
 function dismissToast() {
   toast.value = null
@@ -54,6 +59,9 @@ onMounted(async () => {
     }
   })
   await authStore.initialize()
+  if (isNativeMobile() && authStore.user && isNotificationEnabled(authStore.user.id)) {
+    void startNativePush(authStore.user.id)
+  }
 
   cleanupCapacitor = await initCapacitorApp({
     onResume: async () => {
@@ -66,6 +74,7 @@ onMounted(async () => {
 onUnmounted(() => {
   cleanupCapacitor?.()
   cleanupNotifications?.()
+  void stopNativePushListeners()
 })
 </script>
 
