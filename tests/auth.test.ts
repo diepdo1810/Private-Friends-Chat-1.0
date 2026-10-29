@@ -80,4 +80,25 @@ describe('Auth Store (useAuthStore)', () => {
     const authStore = useAuthStore()
     await expect(authStore.refreshSessionIfNeeded()).resolves.not.toThrow()
   })
+
+  it('clears chatStore and stops messagesStore when refreshSessionIfNeeded finds null session', async () => {
+    const authStore = useAuthStore()
+    const chatStore = useChatStore()
+    const { supabase } = await import('../src/services/supabase')
+
+    chatStore.rooms = [{ id: '1', name: 'Room 1', description: '', created_at: '' }]
+    chatStore.activeRoom = chatStore.rooms[0]
+
+    const originalGetSession = supabase.auth.getSession
+    supabase.auth.getSession = async () => ({ data: { session: null }, error: null } as any)
+
+    await authStore.refreshSessionIfNeeded()
+
+    expect(authStore.user).toBeNull()
+    expect(authStore.session).toBeNull()
+    expect(chatStore.rooms).toEqual([])
+    expect(chatStore.activeRoom).toBeNull()
+
+    supabase.auth.getSession = originalGetSession
+  })
 })

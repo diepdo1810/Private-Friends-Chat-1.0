@@ -89,17 +89,34 @@ export async function initCapacitorApp(options?: MobileInitOptions): Promise<() 
   }
 
   // 2. Keyboard Setup
+  if (Capacitor.getPlatform() === 'ios') {
+    try {
+      await Keyboard.setAccessoryBarVisible({ isVisible: false })
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[Capacitor] iOS accessory bar setup failed:', err)
+    }
+  }
+
+  let keyboardShowListener: { remove: () => Promise<void> } | null = null
+  let keyboardHideListener: { remove: () => Promise<void> } | null = null
+
   try {
-    await Keyboard.setAccessoryBarVisible({ isVisible: false })
-    Keyboard.addListener('keyboardDidShow', () => {
+    keyboardShowListener = await Keyboard.addListener('keyboardDidShow', () => {
       window.dispatchEvent(new CustomEvent('capacitor:keyboard-did-show'))
     })
-    Keyboard.addListener('keyboardDidHide', () => {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[Capacitor] Keyboard keyboardDidShow listener registration failed:', err)
+  }
+
+  try {
+    keyboardHideListener = await Keyboard.addListener('keyboardDidHide', () => {
       window.dispatchEvent(new CustomEvent('capacitor:keyboard-did-hide'))
     })
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.warn('[Capacitor] Keyboard setup failed:', err)
+    console.warn('[Capacitor] Keyboard keyboardDidHide listener registration failed:', err)
   }
 
   // 3. Android Hardware / System Back Button Listener
@@ -141,8 +158,10 @@ export async function initCapacitorApp(options?: MobileInitOptions): Promise<() 
   })
 
   return () => {
-    backListener.remove()
-    appStateListener.remove()
+    void backListener.remove()
+    void appStateListener.remove()
+    void keyboardShowListener?.remove()
+    void keyboardHideListener?.remove()
     isInitialized = false
   }
 }

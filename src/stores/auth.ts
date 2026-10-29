@@ -184,6 +184,9 @@ export const useAuthStore = defineStore('auth', () => {
         session.value = null
         user.value = null
         profile.value = null
+        const chatStore = useChatStore()
+        chatStore.reset()
+        useMessagesStore().stop()
       }
     } catch (err: any) {
       // eslint-disable-next-line no-console
