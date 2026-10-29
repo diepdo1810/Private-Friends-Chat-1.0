@@ -15,17 +15,33 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useMessagesStore } from '@/stores/messages'
+import { initCapacitorApp } from '@/services/capacitor'
 import LoginView from '@/views/LoginView.vue'
 import ChatShell from '@/views/ChatShell.vue'
 
 const authStore = useAuthStore()
+const messagesStore = useMessagesStore()
 const { loading, isAuthenticated } = storeToRefs(authStore)
+
+let cleanupCapacitor: (() => void) | null = null
 
 onMounted(async () => {
   await authStore.initialize()
+
+  cleanupCapacitor = await initCapacitorApp({
+    onResume: async () => {
+      await authStore.refreshSessionIfNeeded()
+      await messagesStore.syncAfterResume()
+    },
+  })
+})
+
+onUnmounted(() => {
+  cleanupCapacitor?.()
 })
 </script>
 

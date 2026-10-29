@@ -206,5 +206,18 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  return { messages, loading, loadingMore, sending, hasMore, error, connection, start, stop, loadOlder, sendText }
+  async function syncAfterResume() {
+    const room = currentRoom
+    const user = currentUser
+    const run = epoch
+    if (!room || !user) return
+
+    if (!channel || connection.value === 'offline') {
+      await start(room, user)
+    } else if (initialized) {
+      await catchUp(run, room)
+    }
+  }
+
+  return { messages, loading, loadingMore, sending, hasMore, error, connection, start, stop, loadOlder, sendText, syncAfterResume }
 })
