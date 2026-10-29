@@ -7,26 +7,26 @@ import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 
 describe('GroupScreen', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-  })
+  beforeEach(() => setActivePinia(createPinia()))
 
-  it('renders hero and dynamic member rows from store', async () => {
+  it('renders room members and exposes logout action', async () => {
     const chatStore = useChatStore()
     const authStore = useAuthStore()
     authStore.user = { id: 'u1' } as any
     chatStore.roomMembers = [
-      { user_id: 'u1', role: 'owner', profile: { id: 'u1', display_name: 'Bạn', username: 'you' } },
-      { user_id: 'u2', role: 'member', profile: { id: 'u2', display_name: 'Linh Mai', username: 'linh' } },
+      { user_id: 'u1', role: 'owner', profile: { id: 'u1', display_name: 'Bạn' } },
+      { user_id: 'u2', role: 'member', profile: { id: 'u2', display_name: 'Linh Mai' } },
     ] as any
 
     const wrapper = mount(GroupScreen)
     expect(wrapper.text()).toContain('Ở đây')
-    expect(wrapper.text()).toContain('cùng nhau.')
     expect(wrapper.text()).toContain('Linh Mai')
     expect(wrapper.text()).toContain('Chủ phòng')
+    expect(wrapper.text()).toContain('Mã nguồn AGPL-3.0')
 
     await wrapper.find('.head-button').trigger('click')
     expect(wrapper.emitted('back')).toBeTruthy()
+    await wrapper.find('.logout-button').trigger('click')
+    expect(wrapper.emitted('logout')).toBeTruthy()
   })
 })

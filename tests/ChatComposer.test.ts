@@ -1,48 +1,63 @@
 // @vitest-environment happy-dom
-import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, it, expect, vi } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import ChatComposer from '@/components/chat/ChatComposer.vue'
 
+const mountComposer = (sendMessage = vi.fn().mockResolvedValue(true)) =>
+  mount(ChatComposer, { props: { sendMessage } })
+
 describe('ChatComposer', () => {
-  it('disables send button when draft is empty', () => {
-    const wrapper = mount(ChatComposer)
-    const sendButton = wrapper.find('button.send')
-    expect(sendButton.attributes('disabled')).toBeDefined()
+  it('disables send button when empty', () => {
+    const wrapper = mountComposer()
+    expect(wrapper.find('button.send').attributes('disabled')).toBeDefined()
   })
 
-  it('enables send button when draft has non-whitespace text', async () => {
-    const wrapper = mount(ChatComposer)
-    const textarea = wrapper.find('textarea')
-    await textarea.setValue('Chào mọi người')
-    const sendButton = wrapper.find('button.send')
-    expect(sendButton.attributes('disabled')).toBeUndefined()
+  it('enables button with text', async () => {
+    const wrapper = mountComposer()
+    await wrapper.find('textarea').setValue('Chào mọi người')
+    expect(wrapper.find('button.send').attributes('disabled')).toBeUndefined()
   })
 
-  it('emits send with trimmed text and clears textarea on submit', async () => {
-    const wrapper = mount(ChatComposer)
+  it('clears draft only after server-confirmed success', async () => {
+    const sendMessage = vi.fn().mockResolvedValue(true)
+    const wrapper = mountComposer(sendMessage)
     const textarea = wrapper.find('textarea')
     await textarea.setValue('Hello!')
     await wrapper.find('form').trigger('submit.prevent')
-    expect(wrapper.emitted('send')?.[0]).toEqual(['Hello!'])
+    await flushPromises()
+    expect(sendMessage).toHaveBeenCalledWith('Hello!')
     expect((textarea.element as HTMLTextAreaElement).value).toBe('')
   })
 
-  it('toggles emoji picker when emoji button is clicked', async () => {
-    const wrapper = mount(ChatComposer)
-    const emojiBtn = wrapper.find('button#emojiButton')
-    expect(wrapper.find('.picker#emojiPicker').classes()).not.toContain('show')
-    await emojiBtn.trigger('click')
-    expect(wrapper.find('.picker#emojiPicker').classes()).toContain('show')
+  it('retains draft when network send fails', async () => {
+    const sendMessage = vi.fn().mockResolvedValue(false)
+    const wrapper = mountComposer(sendMessage)
+    const textarea = wrapper.find('textarea')
+    await textarea.setValue('Không mất tin')
+    await wrapper.find('form').trigger('submit.prevent')
+    await flushPromises()
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('Không mất tin')
   })
 
-  it('inserts selected emoji into draft and closes picker', async () => {
-    const wrapper = mount(ChatComposer)
+  it('prevents duplicate sends while pending', async () => {
+    let finish!: (ok: boolean) => void
+    const sendMessage = vi.fn().mockImplementation(() => new Promise<boolean>(resolve => { finish = resolve }))
+    const wrapper = mountComposer(sendMessage)
+    await wrapper.find('textarea').setValue('Một tin')
+    await wrapper.find('form').trigger('submit.prevent')
+    await wrapper.find('form').trigger('submit.prevent')
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+    finish(true)
+    await flushPromises()
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('keeps emoji picker and inserts emoji at caret', async () => {
+    const wrapper = mountComposer()
     await wrapper.find('button#emojiButton').trigger('click')
-    const emojiBtns = wrapper.findAll('.emoji-grid button')
-    expect(emojiBtns.length).toBeGreaterThan(0)
-    await emojiBtns[0].trigger('click')
-    const textarea = wrapper.find('textarea').element as HTMLTextAreaElement
-    expect(textarea.value).toContain('😀')
-    expect(wrapper.find('.picker#emojiPicker').classes()).not.toContain('show')
+    expect(wrapper.find('.picker#emojiPicker').classes()).toContain('show')
+    await wrapper.findAll('.emoji-grid button')[0].trigger('click')
+    expect((wrapper.find('textarea').element as HTMLTextAreaElement).value).toContain('😀')
   })
 })

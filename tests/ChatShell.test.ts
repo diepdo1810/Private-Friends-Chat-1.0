@@ -8,47 +8,53 @@ import { useAuthStore } from '@/stores/auth'
 import { useMessagesStore } from '@/stores/messages'
 
 describe('ChatShell Container', () => {
-  beforeEach(() => {
-    setActivePinia(createPinia())
-  })
+  beforeEach(() => setActivePinia(createPinia()))
 
-  it('mounts and automatically selects the primary room if available', async () => {
+  it('loads and auto-selects primary room', async () => {
     const chatStore = useChatStore()
     const authStore = useAuthStore()
     const messagesStore = useMessagesStore()
-
     authStore.user = { id: 'u1' } as any
-    const mockRoom = { id: 'room-1', name: 'Private Friends', description: '' }
-    chatStore.fetchRooms = vi.fn().mockImplementation(async () => {
-      chatStore.rooms = [mockRoom] as any
-    })
+    const mockRoom = { id: 'room-1', name: 'Private Friends', description: '', created_at: '' }
+    chatStore.fetchRooms = vi.fn().mockImplementation(async () => { chatStore.rooms = [mockRoom] as any })
     chatStore.fetchRoomMembers = vi.fn()
     messagesStore.start = vi.fn()
 
     const wrapper = mount(ChatShell)
-    await wrapper.vm.$nextTick()
-    // Give async onMounted a cycle to run
-    await new Promise((r) => setTimeout(r, 10))
-
+    await new Promise(resolve => setTimeout(resolve, 10))
     expect(chatStore.fetchRooms).toHaveBeenCalled()
     expect(chatStore.activeRoom?.id).toBe('room-1')
+    wrapper.unmount()
   })
 
-  it('switches screen when bottom nav navigate is triggered', async () => {
+  it('switches to Group and displays logout', async () => {
     const chatStore = useChatStore()
     const authStore = useAuthStore()
     authStore.user = { id: 'u1' } as any
-    chatStore.rooms = [{ id: 'room-1', name: 'Private Friends' }] as any
+    chatStore.rooms = [{ id: 'room-1', name: 'Private Friends', description: '', created_at: '' }] as any
     chatStore.activeRoom = chatStore.rooms[0]
+    chatStore.fetchRooms = vi.fn().mockResolvedValue(chatStore.rooms)
 
     const wrapper = mount(ChatShell)
     expect(wrapper.find('.chat-screen').isVisible()).toBe(true)
-
-    // Trigger navigate to 'group'
     const bottomNav = wrapper.findComponent({ name: 'BottomNav' })
-    expect(bottomNav.exists()).toBe(true)
     await bottomNav.vm.$emit('navigate', 'group')
-
     expect(wrapper.find('.group-screen').isVisible()).toBe(true)
+    expect(wrapper.find('.logout-button').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('shows no-room state without fake member count or enabled composer', async () => {
+    const chatStore = useChatStore()
+    const authStore = useAuthStore()
+    authStore.user = { id: 'u1' } as any
+    chatStore.fetchRooms = vi.fn().mockResolvedValue([])
+
+    const wrapper = mount(ChatShell)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(wrapper.text()).toContain('Chưa có phòng chat được cấp quyền')
+    expect(wrapper.find('textarea').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('4 thành viên')
+    wrapper.unmount()
   })
 })
