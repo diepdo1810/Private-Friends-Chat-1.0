@@ -11,7 +11,7 @@
       </button>
     </div>
 
-    <template v-for="(item, index) in processedItems" :key="item.key">
+    <template v-for="item in processedItems" :key="item.key">
       <!-- Day Divider -->
       <p v-if="item.type === 'day'" class="day">
         {{ item.dateText }}
@@ -27,12 +27,12 @@
         }"
       >
         <i v-if="!item.isMe" class="avatar">
-          {{ getInitials(item.message.profile?.display_name || item.message.profile?.username) }}
+          {{ getInitials(item.message.sender?.display_name) }}
         </i>
 
         <div class="payload">
           <p v-if="!item.isGrouped" class="meta">
-            {{ item.isMe ? 'Bạn' : (item.message.profile?.display_name || 'Thành viên') }}
+            {{ item.isMe ? 'Bạn' : (item.message.sender?.display_name || 'Thành viên') }}
             <time>{{ formatMessageTime(item.message.created_at) }}</time>
           </p>
 

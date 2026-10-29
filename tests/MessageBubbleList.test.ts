@@ -11,21 +11,21 @@ describe('MessageBubbleList', () => {
         user_id: 'u2',
         content: 'Mọi người tối nay ổn không?',
         created_at: '2026-10-29T20:14:00Z',
-        profile: { id: 'u2', display_name: 'Linh Mai' },
+        sender: { id: 'u2', display_name: 'Linh Mai' },
       },
       {
         id: '2',
         user_id: 'u2',
         content: 'Mai mình chốt giờ gặp nhé.',
         created_at: '2026-10-29T20:16:00Z',
-        profile: { id: 'u2', display_name: 'Linh Mai' },
+        sender: { id: 'u2', display_name: 'Linh Mai' },
       },
       {
         id: '3',
         user_id: 'u1',
         content: 'Ổn nhé, mai gặp!',
         created_at: '2026-10-29T20:17:00Z',
-        profile: { id: 'u1', display_name: 'Bạn' },
+        sender: { id: 'u1', display_name: 'Bạn' },
       },
     ]
 

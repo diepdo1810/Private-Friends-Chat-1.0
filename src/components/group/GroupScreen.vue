@@ -20,7 +20,7 @@
           class="orbit"
           :class="'o' + ((idx % 4) + 1)"
         >
-          {{ getInitials(member.profile?.display_name || member.profile?.username) }}
+          {{ getInitials(member.profile?.display_name) }}
         </i>
         <h1>Ở đây<br />cùng nhau.</h1>
         <p>Một phòng trò chuyện riêng tư.</p>
@@ -37,7 +37,7 @@
           class="member-row"
         >
           <i class="avatar">
-            {{ getInitials(member.profile?.display_name || member.profile?.username) }}
+            {{ getInitials(member.profile?.display_name) }}
           </i>
           <span class="member-info">
             <b>
