@@ -53,6 +53,7 @@
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { updateStatusBarTheme } from '@/services/capacitor'
 
 defineEmits<{
   (e: 'open-about'): void
@@ -68,6 +69,7 @@ function toggleTheme() {
   const theme = isDark.value ? 'dark' : 'light'
   document.documentElement.setAttribute('data-theme', theme)
   localStorage.setItem('theme', theme)
+  void updateStatusBarTheme(isDark.value)
 }
 
 onMounted(() => {
@@ -79,6 +81,7 @@ onMounted(() => {
     isDark.value = false
     document.documentElement.setAttribute('data-theme', 'light')
   }
+  void updateStatusBarTheme(isDark.value)
 })
 
 function getInitials(name: string): string {

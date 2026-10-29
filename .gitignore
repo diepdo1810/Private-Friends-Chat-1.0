@@ -25,3 +25,24 @@ logs/**
 .env
 .env.*
 !.env.example
+
+# Android build outputs & local properties
+.gradle/
+build/
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+android/*.iml
+android/app/*.iml
+*.apk
+*.ap_
+*.aab
+*.keystore
+*.jks
+
+# Design scratch
+design-demos/
+direction-approved.md
+

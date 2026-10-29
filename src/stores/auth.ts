@@ -167,6 +167,30 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function refreshSessionIfNeeded(): Promise<void> {
+    if (!isSupabaseConfigured) return
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) {
+        // eslint-disable-next-line no-console
+        console.warn('[AuthStore] Error checking session on resume:', sessionError.message)
+      } else if (data.session) {
+        session.value = data.session
+        user.value = data.session.user
+        if (data.session.user && (!profile.value || profile.value.id !== data.session.user.id)) {
+          await fetchProfile(data.session.user.id)
+        }
+      } else {
+        session.value = null
+        user.value = null
+        profile.value = null
+      }
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.warn('[AuthStore] Exception checking session on resume:', err)
+    }
+  }
+
   return {
     user,
     session,
@@ -179,5 +203,6 @@ export const useAuthStore = defineStore('auth', () => {
     login,
     logout,
     fetchProfile,
+    refreshSessionIfNeeded,
   }
 })

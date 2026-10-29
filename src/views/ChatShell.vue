@@ -117,10 +117,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useChatStore } from '@/stores/chat'
+import { registerBackButtonHandler } from '@/services/capacitor'
 import Sidebar from '@/components/Sidebar.vue'
 import RoomCard from '@/components/RoomCard.vue'
 import AboutModal from '@/components/AboutModal.vue'
@@ -136,6 +137,8 @@ const showAbout = ref(false)
 const showMembers = ref(false)
 const mobileView = ref<'rooms' | 'chat'>('rooms')
 
+let unregisterBack: (() => void) | null = null
+
 function handleSelectRoom(room: any) {
   chatStore.selectRoom(room)
   mobileView.value = 'chat'
@@ -143,6 +146,26 @@ function handleSelectRoom(room: any) {
 
 onMounted(async () => {
   await chatStore.fetchRooms()
+
+  unregisterBack = registerBackButtonHandler(20, () => {
+    if (showAbout.value) {
+      showAbout.value = false
+      return true
+    }
+    if (showMembers.value) {
+      showMembers.value = false
+      return true
+    }
+    if (mobileView.value === 'chat') {
+      mobileView.value = 'rooms'
+      return true
+    }
+    return false
+  })
+})
+
+onUnmounted(() => {
+  unregisterBack?.()
 })
 </script>
 

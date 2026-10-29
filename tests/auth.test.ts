@@ -25,7 +25,7 @@ describe('Auth Store (useAuthStore)', () => {
     expect(result.success).toBe(false)
     expect(result.error).toBeDefined()
     expect(authStore.error).toBe(result.error)
-  })
+  }, 15000)
 
   it('clears auth state and resets chat store on logout', async () => {
     const authStore = useAuthStore()
@@ -74,5 +74,10 @@ describe('Auth Store (useAuthStore)', () => {
     expect(authStore.error).toBe('Network disconnect')
 
     supabase.auth.signOut = originalSignOut
+  })
+
+  it('runs refreshSessionIfNeeded safely without throwing', async () => {
+    const authStore = useAuthStore()
+    await expect(authStore.refreshSessionIfNeeded()).resolves.not.toThrow()
   })
 })

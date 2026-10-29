@@ -130,3 +130,83 @@ Phần giao diện kế thừa phong cách từ [Stapxs QQ Lite 2.0](https://git
 - Test live **chỉ khi chủ động bật**: `RUN_LIVE_SUPABASE_TESTS=1` cùng với `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (hoặc publishable key), `TEST_MEMBER_EMAIL`, `TEST_MEMBER_PASSWORD`, `TEST_OUTSIDER_EMAIL`, `TEST_OUTSIDER_PASSWORD`.
 - Nếu thiếu cấu hình hoặc migration, test live PHẢI FAIL. Không đặt mật khẩu trong git hoặc GitHub issue. Thử trên project test, không dùng dữ liệu thật.
 - Realtime P2 vẫn yêu cầu chạy `supabase/migrations/20261028010000_p2_realtime.sql` nếu chưa áp dụng và kiểm tra 2 tài khoản thực.
+
+---
+
+## P4 — Android App với Capacitor
+
+Đóng gói ứng dụng Vue 3 thành ứng dụng Android native bằng Capacitor (chế độ single-codebase cho Web và Android; không viết lại UI, không thay đổi backend Supabase).
+
+### 1. Yêu cầu Môi trường Build
+- **Node.js**: v22.x
+- **Package Manager**: Yarn v4 (`yarn@4.12.0`)
+- **JDK**: Java 17 (Eclipse Temurin / OpenJDK 17)
+- **Android SDK**: API Level 34 (Android 14) & Build Tools 34.0.0
+- **Android Studio**: Bản Giraffe trở lên (tùy chọn nếu dùng CLI)
+
+### 2. Các bước Build từ mã nguồn (CLI & Local)
+```bash
+# 1. Cài đặt dependencies
+yarn install
+
+# 2. Cấu hình biến môi trường client
+cp .env.example .env
+# Điền VITE_SUPABASE_URL và VITE_SUPABASE_ANON_KEY vào .env
+
+# 3. Kiểm tra kiểm thử và typecheck
+yarn typecheck
+yarn test
+
+# 4. Build web bundle vào dist/
+yarn build
+
+# 5. Đồng bộ web assets và native plugins sang Android project
+yarn cap:sync
+# hoặc: npx cap sync android
+
+# 6. Build Debug APK bằng Gradle Wrapper
+cd android
+./gradlew assembleDebug
+cd ..
+```
+
+### 3. Đường dẫn Output Debug APK & Cài đặt lên thiết bị
+- **Đường dẫn file APK**:
+  `android/app/build/outputs/apk/debug/app-debug.apk`
+- **Cài đặt lên thiết bị Android qua ADB**:
+  ```bash
+  adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+  ```
+- **Mở Android Studio để debug / chạy Emulator**:
+  ```bash
+  yarn cap:open:android
+  ```
+
+### 4. Tự động hóa qua GitHub Actions CI
+Dự án đã tích hợp workflow tự động: `.github/workflows/android.yml`.
+- Tự động chạy mỗi khi push hoặc tạo PR vào các nhánh `mvp`, `next`, `feature/**`.
+- Cài đặt Node 22, JDK 17, Android SDK.
+- Kiểm tra `yarn typecheck` và `yarn test`.
+- Chạy `yarn build` và `npx cap sync android`.
+- Thực hiện `./gradlew assembleDebug` và upload artifact mang tên **`app-debug`**.
+
+### 5. Mobile Runtime & Tính năng tương thích
+- **Android Back Button**: Tích hợp điều hướng lùi phần cứng (đóng Modal Thông tin, đóng Drawer thành viên, quay lại danh sách phòng, hoặc thoát app khi ở màn hình gốc).
+- **Status Bar**: Tự động chuyển đổi màu và icon sáng/tối theo theme.
+- **Safe Area Insets**: Hỗ trợ notch camera, tai thỏ và thanh điều hướng ảo (`env(safe-area-inset-*)`).
+- **Soft Keyboard (`adjustResize`)**: Tự động cuộn khung chat khi bàn phím ảo hiển thị, không che khuất ô nhập tin.
+- **Pause / Resume Sync**: Tự động kiểm tra làm mới phiên làm việc Supabase và đồng bộ tin nhắn bị bỏ lỡ sau khi mở lại ứng dụng từ chạy nền.
+- **Bảo mật mạng**: Enforce HTTPS / WSS qua `network_security_config.xml`, chặn cleartext HTTP toàn cục. Không chứa khóa bảo mật hay `service_role` phía client.
+
+### 6. Bảng Kiểm Tra & Đánh Giá Tiêu Chí (Acceptance Matrix)
+| Hạng mục / Tiêu chí | Trạng thái | Ghi chú kiểm chứng |
+| :--- | :---: | :--- |
+| Không sửa nhánh `next`, PR vào `mvp` | **PASS** | Nhánh phát triển từ `mvp`, `next` giữ nguyên |
+| Web Typecheck (`yarn typecheck`) | **PASS** | `vue-tsc --noEmit` hoàn tất không lỗi |
+| Web Test Suite (`yarn test`) | **PASS** | 28/28 vitest tests passed |
+| Web Build (`yarn build`) | **PASS** | Đóng gói production sạch vào `dist/` |
+| Capacitor Sync (`npx cap sync android`) | **PASS** | Đồng bộ assets và 3 plugins native thành công |
+| Cấu hình bảo mật Android (HTTPS / WSS) | **PASS** | `network_security_config.xml` và `AndroidManifest.xml` |
+| GitHub Actions Android Build Workflow | **PASS** | Cấu hình `.github/workflows/android.yml` upload artifact `app-debug` |
+| Kiểm thử trên thiết bị vật lý thật | **NOT TESTED** | Môi trường agent không gắn thiết bị ngoại vi vật lý |
+

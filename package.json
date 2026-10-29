@@ -11,9 +11,16 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "cap:sync": "cap sync android",
+    "cap:open:android": "cap open android",
+    "cap:build:android": "yarn build && cap sync android"
   },
   "dependencies": {
+    "@capacitor/app": "6.0.3",
+    "@capacitor/core": "6.2.3",
+    "@capacitor/keyboard": "6.0.4",
+    "@capacitor/status-bar": "6.0.3",
     "@fortawesome/fontawesome-svg-core": "^6.7.2",
     "@fortawesome/free-regular-svg-icons": "^6.7.2",
     "@fortawesome/free-solid-svg-icons": "^6.7.2",
@@ -23,6 +30,8 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@capacitor/android": "6.2.3",
+    "@capacitor/cli": "6.2.3",
     "@types/node": "^22.13.4",
     "@vitejs/plugin-vue": "^5.2.1",
     "typescript": "^5.7.3",

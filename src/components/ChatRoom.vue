@@ -75,9 +75,20 @@ function jumpToLatest() {
   if (el) el.scrollTop = el.scrollHeight
   unreadCount.value = 0
 }
-onMounted(start)
+function onKeyboardShow() {
+  void nextTick(() => {
+    jumpToLatest()
+  })
+}
+onMounted(() => {
+  start()
+  window.addEventListener('capacitor:keyboard-did-show', onKeyboardShow)
+})
 watch(() => [props.roomId, props.myUserId], start)
-onBeforeUnmount(() => store.stop())
+onBeforeUnmount(() => {
+  store.stop()
+  window.removeEventListener('capacitor:keyboard-did-show', onKeyboardShow)
+})
 
 async function older() {
   const el = scrollEl.value
