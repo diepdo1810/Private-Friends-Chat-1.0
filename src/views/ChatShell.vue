@@ -145,8 +145,6 @@ function handleSelectRoom(room: any) {
 }
 
 onMounted(async () => {
-  await chatStore.fetchRooms()
-
   unregisterBack = registerBackButtonHandler(20, () => {
     if (showAbout.value) {
       showAbout.value = false
@@ -162,6 +160,8 @@ onMounted(async () => {
     }
     return false
   })
+
+  await chatStore.fetchRooms()
 })
 
 onUnmounted(() => {
