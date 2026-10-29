@@ -168,7 +168,6 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function refreshSessionIfNeeded(): Promise<void> {
-    if (!isSupabaseConfigured) return
     try {
       const { data, error: sessionError } = await supabase.auth.getSession()
       if (sessionError) {

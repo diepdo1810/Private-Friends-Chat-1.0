@@ -81,7 +81,7 @@ export async function initCapacitorApp(options?: MobileInitOptions): Promise<() 
   // 1. Initial Status Bar Setup
   try {
     await StatusBar.setOverlaysWebView({ overlay: false })
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark'
+    const isDark = typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark'
     await updateStatusBarTheme(isDark)
   } catch (err) {
     // eslint-disable-next-line no-console
