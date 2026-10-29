@@ -1,5 +1,5 @@
 <template>
-  <div class="responsive-chat-shell">
+  <div class="responsive-chat-shell" :data-layout="isMobile ? 'mobile' : 'desktop'">
     <DesktopChatShell v-show="!isMobile" />
     <MobileChatShell v-show="isMobile" />
   </div>
