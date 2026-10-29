@@ -6,7 +6,7 @@
         :roomName="activeRoom?.name"
         :memberCount="roomMembers.length"
         @toggle-theme="toggleTheme"
-        @open-group="activeScreen = 'group'"
+        @open-group="handleNavigate('group')"
       />
 
       <OfflineBanner
@@ -39,7 +39,7 @@
 
     <!-- Screen 2: Group Screen -->
     <section v-show="activeScreen === 'group'" class="four-together-screen group-screen">
-      <GroupScreen @back="activeScreen = 'chat'" @logout="handleLogout" />
+      <GroupScreen @back="handleNavigate('chat')" @logout="handleLogout" />
       <p v-if="logoutError" class="logout-error" role="alert">{{ logoutError }}</p>
 
       <BottomNav

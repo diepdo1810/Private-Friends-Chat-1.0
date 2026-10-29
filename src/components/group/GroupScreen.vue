@@ -56,7 +56,7 @@
       <div class="group-actions">
         <div class="notification-settings">
           <button type="button" class="logout-button" @click="toggleNotifications">
-            {{ notificationsEnabled ? 'Tắt thông báo' : 'Bật thông báo' }}
+            {{ notificationsEnabled ? 'Tắt thông báo' : (isNativeMobile() ? 'Bật nhắc trong ứng dụng' : 'Bật thông báo trình duyệt') }}
           </button>
           <small v-if="notificationError" role="alert">{{ notificationError }}</small>
         </div>
