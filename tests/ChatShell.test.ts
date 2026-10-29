@@ -3,12 +3,29 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ChatShell from '@/views/ChatShell.vue'
+vi.mock('@/services/capacitor', () => ({
+  isNativeMobile: () => false,
+  registerBackButtonHandler: () => () => {},
+  updateStatusBarTheme: vi.fn(),
+}))
 import { useChatStore } from '@/stores/chat'
 import { useAuthStore } from '@/stores/auth'
 import { useMessagesStore } from '@/stores/messages'
 
 describe('ChatShell Container', () => {
-  beforeEach(() => setActivePinia(createPinia()))
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    Object.defineProperty(window, 'matchMedia', {
+      writable: true,
+      configurable: true,
+      value: vi.fn().mockImplementation(query => ({
+        media: query,
+        matches: true,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    })
+  })
 
   it('loads and auto-selects primary room', async () => {
     const chatStore = useChatStore()
@@ -56,5 +73,30 @@ describe('ChatShell Container', () => {
     expect(wrapper.find('textarea').exists()).toBe(false)
     expect(wrapper.text()).not.toContain('4 thành viên')
     wrapper.unmount()
+  })
+
+  it('restores QQ Lite desktop UI and hides mobile nav at widths over 700px', async () => {
+    const authStore = useAuthStore()
+    const chatStore = useChatStore()
+    authStore.user = { id: 'u1' } as any
+    chatStore.fetchRooms = vi.fn().mockResolvedValue([])
+    let onChange: (() => void) | undefined
+    const query = { matches: false, addEventListener: vi.fn((_: string, fn: () => void) => { onChange = fn }), removeEventListener: vi.fn() }
+    Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value: vi.fn(() => query) })
+    const wrapper = mount(ChatShell)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(wrapper.find('.app-sidebar').isVisible()).toBe(true)
+    expect(wrapper.find('.session-panel').isVisible()).toBe(true)
+    expect(wrapper.find('.responsive-chat-shell').attributes('data-layout')).toBe('desktop')
+    expect(wrapper.find('.bottom-nav').exists()).toBe(true)
+    expect(onChange).toBeDefined()
+    query.matches = true
+    onChange?.()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.responsive-chat-shell').attributes('data-layout')).toBe('mobile')
+    expect(wrapper.find('.four-together-shell').exists()).toBe(true)
+    expect(query.removeEventListener).toHaveBeenCalledTimes(0)
+    wrapper.unmount()
+    expect(query.removeEventListener).toHaveBeenCalledTimes(1)
   })
 })
