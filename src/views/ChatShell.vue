@@ -4,7 +4,7 @@
     <section v-show="activeScreen === 'chat'" class="four-together-screen chat-screen">
       <ChatHeader
         :roomName="activeRoom?.name"
-        :memberCount="roomMembers.length || 4"
+        :memberCount="roomMembers.length"
         @toggle-theme="toggleTheme"
         @open-group="activeScreen = 'group'"
       />
@@ -14,19 +14,22 @@
         @retry="handleRetry"
       />
 
-      <MessageBubbleList
-        ref="messageListRef"
-        :messages="messages"
-        :currentUserId="user?.id"
-        :hasMore="hasMore"
-        :loadingMore="loadingMore"
-        @load-more="messagesStore.loadOlder()"
-      />
-
-      <ChatComposer
-        :isSending="sending"
-        @send="handleSendMessage"
-      />
+      <template v-if="activeRoom">
+        <MessageBubbleList
+          ref="messageListRef"
+          :messages="messages"
+          :members="roomMembers"
+          :currentUserId="user?.id"
+          :hasMore="hasMore"
+          :loadingMore="loadingMore"
+          :loadOlder="messagesStore.loadOlder"
+        />
+        <ChatComposer :isSending="sending" :sendMessage="handleSendMessage" />
+      </template>
+      <div v-else class="room-status" role="status">
+        <p>{{ roomsLoading ? 'Đang tải phòng...' : (roomsError || 'Chưa có phòng chat được cấp quyền.') }}</p>
+        <button v-if="!roomsLoading" type="button" @click="loadRoomsAndSelect">Thử tải lại phòng</button>
+      </div>
 
       <BottomNav
         :activeTab="activeScreen"
@@ -36,7 +39,8 @@
 
     <!-- Screen 2: Group Screen -->
     <section v-show="activeScreen === 'group'" class="four-together-screen group-screen">
-      <GroupScreen @back="activeScreen = 'chat'" />
+      <GroupScreen @back="activeScreen = 'chat'" @logout="handleLogout" />
+      <p v-if="logoutError" class="logout-error" role="alert">{{ logoutError }}</p>
 
       <BottomNav
         :activeTab="activeScreen"
@@ -65,7 +69,7 @@ const chatStore = useChatStore()
 const messagesStore = useMessagesStore()
 
 const { user } = storeToRefs(authStore)
-const { rooms, activeRoom, roomMembers } = storeToRefs(chatStore)
+const { rooms, activeRoom, roomMembers, loading: roomsLoading, error: roomsError } = storeToRefs(chatStore)
 const { messages, loadingMore, sending, hasMore, connection } = storeToRefs(messagesStore)
 
 const activeScreen = ref<'chat' | 'group'>('chat')
@@ -73,6 +77,8 @@ const messageListRef = ref<InstanceType<typeof MessageBubbleList> | null>(null)
 const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
 let unregisterBack: (() => void) | null = null
+let disposed = false
+const logoutError = ref<string | null>(null)
 
 const isOffline = computed(() => {
   return !isOnline.value || connection.value === 'offline'
@@ -80,18 +86,25 @@ const isOffline = computed(() => {
 
 function handleNavigate(tab: 'chat' | 'group') {
   activeScreen.value = tab
-  if (tab === 'chat') {
-    messageListRef.value?.scrollToBottom(false)
-  }
 }
 
-async function handleSendMessage(text: string) {
-  if (!activeRoom.value && rooms.value.length > 0) {
-    chatStore.selectRoom(rooms.value[0])
-  }
+async function handleSendMessage(text: string): Promise<boolean> {
+  if (!activeRoom.value) return false
   const ok = await messagesStore.sendText(text)
-  if (ok) {
-    messageListRef.value?.scrollToBottom(true)
+  if (ok) void messageListRef.value?.scrollToBottom(true)
+  return ok
+}
+
+async function handleLogout() {
+  const result = await authStore.logout()
+  logoutError.value = result.success ? null : (result.error || 'Không thể đăng xuất.')
+}
+
+async function loadRoomsAndSelect() {
+  await chatStore.fetchRooms()
+  if (disposed) return
+  if (!activeRoom.value && rooms.value.length > 0) {
+    await chatStore.selectRoom(rooms.value[0])
   }
 }
 
@@ -124,11 +137,13 @@ function handleKeyboardShow() {
 
 // Watch activeRoom and start messages subscription
 watch(
-  [activeRoom, user],
-  ([room, currentUser]) => {
-    if (room && currentUser) {
-      messagesStore.start(room.id, currentUser.id)
-      chatStore.fetchRoomMembers(room.id)
+  [() => activeRoom.value?.id, () => user.value?.id],
+  ([roomId, userId]) => {
+    if (roomId && userId) {
+      void messagesStore.start(roomId, userId)
+      void chatStore.fetchRoomMembers(roomId)
+    } else {
+      messagesStore.stop()
     }
   },
   { immediate: true }
@@ -151,14 +166,13 @@ onMounted(async () => {
     window.addEventListener('capacitor:keyboard-did-show', handleKeyboardShow)
   }
 
-  // 3. Fetch rooms and auto-select primary room
-  await chatStore.fetchRooms()
-  if (!activeRoom.value && rooms.value.length > 0) {
-    chatStore.selectRoom(rooms.value[0])
-  }
+  // 3. Fetch rooms without masking missing memberships.
+  await loadRoomsAndSelect()
 })
 
 onUnmounted(() => {
+  disposed = true
+  messagesStore.stop()
   unregisterBack?.()
   if (typeof window !== 'undefined') {
     window.removeEventListener('online', handleOnline)
@@ -173,4 +187,7 @@ onUnmounted(() => {
 .group-screen {
   height: 100%;
 }
+.room-status { flex: 1; display: grid; align-content: center; justify-items: center; gap: 12px; padding: 24px; color: var(--muted); text-align: center; }
+.room-status button { padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; color: var(--blue); background: var(--panel); cursor: pointer; }
+.logout-error { margin: 8px 16px; color: var(--coral); font-size: 12px; }
 </style>

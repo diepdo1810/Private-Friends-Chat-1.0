@@ -33,7 +33,7 @@ withDefaults(
   }>(),
   {
     roomName: 'Private Friends',
-    memberCount: 4,
+    memberCount: 0,
   }
 )
 

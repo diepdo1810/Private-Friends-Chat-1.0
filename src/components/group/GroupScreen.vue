@@ -53,6 +53,10 @@
           Đang tải danh sách thành viên...
         </div>
       </div>
+      <div class="group-actions">
+        <button type="button" class="logout-button" @click="$emit('logout')">Đăng xuất</button>
+        <a href="https://github.com/diepdo1810/Private-Friends-Chat-1.0" target="_blank" rel="noopener noreferrer">Mã nguồn AGPL-3.0</a>
+      </div>
     </div>
   </div>
 </template>
@@ -66,6 +70,7 @@ import { getInitials } from '@/utils/chatFormat'
 
 defineEmits<{
   (e: 'back'): void
+  (e: 'logout'): void
 }>()
 
 const chatStore = useChatStore()
@@ -258,4 +263,10 @@ const orbitMembers = computed(() => {
   font-size: 13px;
   text-align: center;
 }
+</style>
+
+<style scoped>
+.group-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 22px 18px; }
+.logout-button { min-height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-weight: 700; cursor: pointer; }
+.group-actions a { color: var(--blue); font-size: 12px; }
 </style>
