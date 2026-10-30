@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '@/services/supabase'
 import type { Profile } from '@/types/database'
 import { useChatStore } from '@/stores/chat'
 import { useMessagesStore } from '@/stores/messages'
+import { disableNativePush } from '@/services/nativePush'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
@@ -146,6 +147,7 @@ export const useAuthStore = defineStore('auth', () => {
     actionLoading.value = true
     error.value = null
     try {
+      if (user.value?.id) await disableNativePush(user.value.id)
       const { error: signOutError } = await supabase.auth.signOut()
       if (signOutError) {
         error.value = signOutError.message
