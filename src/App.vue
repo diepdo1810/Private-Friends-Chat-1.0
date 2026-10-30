@@ -10,11 +10,11 @@
 
   <template v-else>
     <ChatShell v-if="isAuthenticated" />
-    <div v-if="toast" class="notification-toast" role="status" @click="dismissToast">
+    <LoginView v-else />
+    <div v-if="isAuthenticated && toast" class="notification-toast" role="status" @click="dismissToast">
       {{ toast }}
       <button type="button" aria-label="Đóng thông báo" @click.stop="dismissToast">×</button>
     </div>
-    <LoginView v-else />
   </template>
 </template>
 
